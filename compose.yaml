@@ -1,0 +1,26 @@
+services:
+  dashboard:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - type: bind
+        source: ./data/results
+        target: /app/data/results
+        read_only: true
+      - ace-dash-data:/app/data/normalized
+    environment:
+      - ACE_PORT=8080
+      - ACE_RESULTS_DIR=/app/data/results
+      - ACE_NORMALIZED_DIR=/app/data/normalized
+      - ACE_SCAN_INTERVAL_MS=10000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8080/api/health').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+volumes:
+  ace-dash-data:

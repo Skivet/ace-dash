@@ -1,0 +1,420 @@
+{
+ "server_name": "Bento Racing Club",
+ "server_id": "",
+ "server_ip": "",
+ "season_guid": "591fc964-6f29-485e-94b7-a2f0654764cb",
+ "session_name": "Practice",
+ "session_type": "Practice",
+ "track_name": "Nurburgring",
+ "track_layout_name": "Touristenfahrten",
+ "championship_id": {
+  "a": "6422073026852505694",
+  "b": "10716212991726413003"
+ },
+ "event_index": 0,
+ "session_index": 0,
+ "is_static": false,
+ "is_completed": true,
+ "specialization": {
+  "@type": "type.googleapis.com/TimeAttack.Specialization",
+  "base": {
+   "session_duration_ms": 10800000,
+   "session_laps": 0,
+   "maximum_session_overtime_duration_ms": 10000,
+   "maximum_session_overtime_before_next_session": 10000,
+   "intro_music": true,
+   "end_music": true,
+   "end_replay_type": "None"
+  },
+  "base_file": "",
+  "base_source": "Custom",
+  "penalty_transformations": {
+   "transformations": []
+  },
+  "penalty_transformations_file": "EA1",
+  "penalty_transformations_source": "Custom",
+  "penalty_investigations": {
+   "triggers": [
+    {
+     "race_car_cut": {
+      "tyres_out": 3,
+      "wet_multiplier": 0
+     },
+     "command_name": "",
+     "checks": []
+    },
+    {
+     "wrong_way": {
+      "min_speed": 2,
+      "speed_multiplier": 0.1,
+      "out_of_track_multiplier": 2
+     },
+     "command_name": "",
+     "checks": [
+      {
+       "data": {
+        "type": "PenaltyType_Warning",
+        "penalty_time_ms": 0,
+        "laps_for_clearing": 0
+       },
+       "weight": 30
+      },
+      {
+       "data": {
+        "type": "PenaltyType_Disqualification",
+        "penalty_time_ms": 0,
+        "laps_for_clearing": 0
+       },
+       "weight": 100
+      }
+     ]
+    },
+    {
+     "speeding": {
+      "required_speed": 60,
+      "check_if_higher": true
+     },
+     "command_name": "pitlane",
+     "checks": [
+      {
+       "data": {
+        "type": "PenaltyType_Warning",
+        "penalty_time_ms": 0,
+        "laps_for_clearing": 0
+       },
+       "weight": 62
+      },
+      {
+       "data": {
+        "type": "PenaltyType_MP_TeleportToPit",
+        "penalty_time_ms": 10000,
+        "laps_for_clearing": 0
+       },
+       "weight": 70
+      }
+     ]
+    }
+   ]
+  },
+  "penalty_investigations_file": "EA1",
+  "penalty_investigations_source": "Custom",
+  "rules": []
+ },
+ "car_standings": [
+  {
+   "car_id": {
+    "a": "4750819736497017440",
+    "b": "6999452360667336099"
+   },
+   "total_km": 0,
+   "total_fuel_liters": 0,
+   "energy_source_consumed": 0,
+   "energy_source_type": "FuelLiter",
+   "starting_position": 0,
+   "tyre_tread_consumed": {}
+  }
+ ],
+ "driver_standings": [
+  {
+   "a": "5448670541449859082",
+   "b": "12784955041578603700"
+  }
+ ],
+ "time_standings": [
+  0
+ ],
+ "drivers": [
+  {
+   "guid": {
+    "a": "5448670541449859082",
+    "b": "12784955041578603700"
+   },
+   "first_name": "skivet",
+   "last_name": "kirigaya",
+   "nickname": "skivet",
+   "player_id": "76561198093041387",
+   "nation": "ATA",
+   "year_of_birth": 1999
+  }
+ ],
+ "laps": [],
+ "car_points": [],
+ "driver_points": [],
+ "cars": [
+  {
+   "car_id": {
+    "a": "4750819736497017440",
+    "b": "6999452360667336099"
+   },
+   "model_displayname": "Porsche 911 GT3 RS (992)",
+   "model_mechanical_preset": "",
+   "performance_indicator": 16.6361027,
+   "race_number": 0
+  }
+ ],
+ "collisions": [
+  {
+   "local_timestamp": 210651.88770000002,
+   "server_timestamp": 54540261.8522828,
+   "car_id": {
+    "a": "4750819736497017440",
+    "b": "6999452360667336099"
+   },
+   "collider": "Object",
+   "has_damage": false,
+   "relative_impact_kmh": 2.89880466,
+   "world_pos": {
+    "x": 3926.50146,
+    "y": 574.461243,
+    "z": 4929.15186
+   },
+   "rel_pos": {
+    "x": -0.881494761,
+    "y": -0.308347583,
+    "z": 2.19757128
+   },
+   "normal": {
+    "x": 0.859657466,
+    "y": 0.28776142,
+    "z": 0.422116637
+   }
+  },
+  {
+   "local_timestamp": 245445.88770000002,
+   "server_timestamp": 54575054.826797664,
+   "car_id": {
+    "a": "4750819736497017440",
+    "b": "6999452360667336099"
+   },
+   "collider": "Wall",
+   "has_damage": true,
+   "relative_impact_kmh": 25.5564709,
+   "world_pos": {
+    "x": 3042.82764,
+    "y": 612.828125,
+    "z": 5761.1123
+   },
+   "rel_pos": {
+    "x": -0.843791246,
+    "y": -0.304991603,
+    "z": 2.1989584
+   },
+   "normal": {
+    "x": 0.416666061,
+    "y": 0,
+    "z": 0.909059644
+   }
+  },
+  {
+   "local_timestamp": 245895.88770000002,
+   "server_timestamp": 54575505.357248835,
+   "car_id": {
+    "a": "4750819736497017440",
+    "b": "6999452360667336099"
+   },
+   "collider": "Wall",
+   "has_damage": true,
+   "relative_impact_kmh": 6.88712597,
+   "world_pos": {
+    "x": 3043.14624,
+    "y": 613.936829,
+    "z": 5760.95801
+   },
+   "rel_pos": {
+    "x": -0.839417875,
+    "y": 0.87734741,
+    "z": -1.91723931
+   },
+   "normal": {
+    "x": 0.416666061,
+    "y": 0,
+    "z": 0.909059644
+   }
+  },
+  {
+   "local_timestamp": 260628.88770000002,
+   "server_timestamp": 54590237.796725236,
+   "car_id": {
+    "a": "4750819736497017440",
+    "b": "6999452360667336099"
+   },
+   "collider": "Wall",
+   "has_damage": true,
+   "relative_impact_kmh": 8.78704739,
+   "world_pos": {
+    "x": 3931.03833,
+    "y": 574.419128,
+    "z": 4913.20898
+   },
+   "rel_pos": {
+    "x": -0.951043606,
+    "y": 0.0455876,
+    "z": 1.91159081
+   },
+   "normal": {
+    "x": 0.943411112,
+    "y": 0.000477541442,
+    "z": 0.331625164
+   }
+  },
+  {
+   "local_timestamp": 260943.88770000002,
+   "server_timestamp": 54590552.842212617,
+   "car_id": {
+    "a": "4750819736497017440",
+    "b": "6999452360667336099"
+   },
+   "collider": "Wall",
+   "has_damage": true,
+   "relative_impact_kmh": 3.41225195,
+   "world_pos": {
+    "x": 3930.78613,
+    "y": 575.249146,
+    "z": 4913.91504
+   },
+   "rel_pos": {
+    "x": -0.839417875,
+    "y": 0.87734741,
+    "z": -1.91723931
+   },
+   "normal": {
+    "x": 0.943411112,
+    "y": 0.000477541442,
+    "z": 0.331625164
+   }
+  },
+  {
+   "local_timestamp": 261978.88770000002,
+   "server_timestamp": 54591587.364956312,
+   "car_id": {
+    "a": "4750819736497017440",
+    "b": "6999452360667336099"
+   },
+   "collider": "Object",
+   "has_damage": false,
+   "relative_impact_kmh": 18.2404861,
+   "world_pos": {
+    "x": 3935.17041,
+    "y": 574.323181,
+    "z": 4928.49
+   },
+   "rel_pos": {
+    "x": 0.89,
+    "y": -0.211901188,
+    "z": 2.28693652
+   },
+   "normal": {
+    "x": -0.939299762,
+    "y": 0,
+    "z": -0.343097538
+   }
+  },
+  {
+   "local_timestamp": 262248.8877,
+   "server_timestamp": 54591857.364956312,
+   "car_id": {
+    "a": "4750819736497017440",
+    "b": "6999452360667336099"
+   },
+   "collider": "Object",
+   "has_damage": false,
+   "relative_impact_kmh": 6.96510935,
+   "world_pos": {
+    "x": 3931.80176,
+    "y": 574.207947,
+    "z": 4925.84082
+   },
+   "rel_pos": {
+    "x": -0.88627243,
+    "y": -0.277282774,
+    "z": -1.56121564
+   },
+   "normal": {
+    "x": 0.90244627,
+    "y": 0.269203693,
+    "z": -0.336333334
+   }
+  },
+  {
+   "local_timestamp": 262356.8877,
+   "server_timestamp": 54591965.364956312,
+   "car_id": {
+    "a": "4750819736497017440",
+    "b": "6999452360667336099"
+   },
+   "collider": "Object",
+   "has_damage": false,
+   "relative_impact_kmh": 9.20571613,
+   "world_pos": {
+    "x": 3931.71,
+    "y": 574.18512,
+    "z": 4925.85107
+   },
+   "rel_pos": {
+    "x": -0.883481562,
+    "y": -0.276534259,
+    "z": -1.59083748
+   },
+   "normal": {
+    "x": -0.907645941,
+    "y": -0.212561354,
+    "z": 0.361934483
+   }
+  },
+  {
+   "local_timestamp": 278259.8877,
+   "server_timestamp": 54607868.868435435,
+   "car_id": {
+    "a": "4750819736497017440",
+    "b": "6999452360667336099"
+   },
+   "collider": "Object",
+   "has_damage": false,
+   "relative_impact_kmh": 58.0004158,
+   "world_pos": {
+    "x": 3930.78052,
+    "y": 574.264648,
+    "z": 4925.73047
+   },
+   "rel_pos": {
+    "x": 0.775877297,
+    "y": -0.31142807,
+    "z": 2.23228645
+   },
+   "normal": {
+    "x": 0.554691851,
+    "y": -0.0274367388,
+    "z": -0.831603408
+   }
+  },
+  {
+   "local_timestamp": 319371.8877,
+   "server_timestamp": 54648979.799919896,
+   "car_id": {
+    "a": "4750819736497017440",
+    "b": "6999452360667336099"
+   },
+   "collider": "Wall",
+   "has_damage": true,
+   "relative_impact_kmh": 47.4856453,
+   "world_pos": {
+    "x": 2870.37891,
+    "y": 622.566956,
+    "z": 5775.42529
+   },
+   "rel_pos": {
+    "x": -0.450562507,
+    "y": 0.0142044425,
+    "z": 2.49241471
+   },
+   "normal": {
+    "x": -0.635397851,
+    "y": 0,
+    "z": 0.772184908
+   }
+  }
+ ],
+ "penalty_collection": {
+  "session_penalties": []
+ }
+}

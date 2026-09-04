@@ -1,0 +1,12 @@
+{
+  "name": "ace-dash",
+  "version": "1.0.0",
+  "description": "ACE Session Analytics dashboard",
+  "type": "module",
+  "main": "server/server.js",
+  "scripts": {
+    "test": "node --test test/**/*.test.js",
+    "start": "node server/server.js",
+    "dev": "node server/server.js"
+  }
+}
