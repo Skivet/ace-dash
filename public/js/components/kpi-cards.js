@@ -1,9 +1,11 @@
-import { formatTime, formatTimeDelta, formatSpeed } from '../formatters.js';
+import { formatTime, formatTimeDelta, formatGap } from '../formatters.js';
 
 export function createKpiCards(session) {
   const container = document.createElement('section');
   container.className = 'kpi-strip';
   container.setAttribute('aria-label', 'Key performance indicators');
+
+  const classifiedCount = (session.entries || []).filter(e => e.bestLapMs !== null).length;
 
   const cards = [
     {
@@ -14,7 +16,7 @@ export function createKpiCards(session) {
     {
       label: 'COMPLETED LAPS',
       value: String(session.completedLapCount),
-      detail: session.entriesCount > 0 ? `${session.entriesCount} driver${session.entriesCount > 1 ? 's' : ''}` : '',
+      detail: classifiedCount > 0 ? `${classifiedCount} driver${classifiedCount > 1 ? 's' : ''} with laps` : '',
     },
     {
       label: 'BEST IMPROVEMENT',
@@ -22,9 +24,9 @@ export function createKpiCards(session) {
       detail: session.largestImprovementMs !== null ? getImprovementDriver(session) : '',
     },
     {
-      label: 'TOP IMPACT',
-      value: formatSpeed(session.maxImpactKmh),
-      detail: session.maxImpactKmh > 0 ? getTopImpactDriver(session) : '',
+      label: 'LEADER GAP',
+      value: session.leaderGapMs !== null ? formatTimeDelta(session.leaderGapMs) : '—',
+      detail: session.leaderGapMs !== null ? getLeaderGapDetail(session) : 'Need two classified entries',
     },
   ];
 
@@ -75,8 +77,11 @@ function getImprovementDriver(session) {
   return bestDriver;
 }
 
-function getTopImpactDriver(session) {
-  if (!session.entries || session.maxImpactKmh <= 0) return '';
-  const entry = session.entries.find(e => e.contacts.maximumImpactKmh === session.maxImpactKmh);
-  return entry ? entry.driver.nickname : '';
+function getLeaderGapDetail(session) {
+  if (!session.entries || session.leaderGapMs === null) return '';
+  const classified = session.entries.filter(e => e.bestLapMs !== null);
+  if (classified.length < 2) return '';
+  const p1 = classified[0];
+  const p2 = classified[1];
+  return `P1 to P2`;
 }

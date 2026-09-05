@@ -2,6 +2,30 @@
  * Normalizes raw ACE results JSON into the dashboard session model.
  */
 
+/**
+ * Parses a session timestamp from a filename containing the pattern
+ * results_YYYYMMDD_HHMMSS_<session-type>.json.
+ * The pattern may appear anywhere in the filename (tolerant of prefixes).
+ * Returns an ISO 8601 string representing the parsed wall-clock time
+ * interpreted as server-local time, or null if no timestamp is found.
+ */
+function parseTimestampFromFilename(filename) {
+  if (typeof filename !== 'string') return null;
+  const match = filename.match(/results_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})_/);
+  if (!match) return null;
+  const [, year, month, day, hour, minute, second] = match;
+  const ms = Date.UTC(
+    parseInt(year, 10),
+    parseInt(month, 10) - 1,
+    parseInt(day, 10),
+    parseInt(hour, 10),
+    parseInt(minute, 10),
+    parseInt(second, 10),
+  );
+  if (isNaN(ms)) return null;
+  return new Date(ms).toISOString();
+}
+
 function compositeId(value) {
   if (!value || typeof value !== 'object' || typeof value.a !== 'string' || typeof value.b !== 'string') {
     return null;
@@ -119,6 +143,9 @@ function normalize(raw) {
       .filter(l => l.driverKey === driverKey && l.carKey === carKey && l.timeMs > 0);
 
     const bestLapMs = entryLaps.length > 0 ? Math.min(...entryLaps.map(l => l.timeMs)) : null;
+    const completedLapCount = entryLaps.length;
+    const averageLapMs = completedLapCount > 0 ? Math.round(entryLaps.reduce((sum, l) => sum + l.timeMs, 0) / completedLapCount) : null;
+    const lapRangeMs = completedLapCount >= 2 ? Math.max(...entryLaps.map(l => l.timeMs)) - Math.min(...entryLaps.map(l => l.timeMs)) : null;
 
     entries.push({
       id: entryId,
@@ -138,6 +165,9 @@ function normalize(raw) {
         flags: l.flags,
       })),
       bestLapMs,
+      completedLapCount,
+      averageLapMs,
+      lapRangeMs,
       contacts: aggregateContacts(collisions, carKey),
     });
   }
@@ -147,6 +177,10 @@ function normalize(raw) {
     entry.penalties = penaltiesMap[entry.car.id] || [];
   }
 
+  const allLaps = entries.flatMap(e => e.laps);
+  const completedLapCount = allLaps.length;
+  const bestLapMs = allLaps.length > 0 ? Math.min(...allLaps.map(l => l.timeMs)) : null;
+
   entries.sort((a, b) => {
     if (a.bestLapMs !== null && b.bestLapMs !== null) return a.bestLapMs - b.bestLapMs;
     if (a.bestLapMs !== null) return -1;
@@ -154,9 +188,12 @@ function normalize(raw) {
     return 0;
   });
 
-  const allLaps = entries.flatMap(e => e.laps);
-  const completedLapCount = allLaps.length;
-  const bestLapMs = allLaps.length > 0 ? Math.min(...allLaps.map(l => l.timeMs)) : null;
+  for (const entry of entries) {
+    entry.gapToBestMs = entry.bestLapMs !== null && bestLapMs !== null ? entry.bestLapMs - bestLapMs : null;
+  }
+
+  const classifiedEntries = entries.filter(e => e.bestLapMs !== null);
+  const leaderGapMs = classifiedEntries.length >= 2 ? classifiedEntries[1].bestLapMs - classifiedEntries[0].bestLapMs : null;
 
   let largestImprovementMs = null;
   for (const entry of entries) {
@@ -200,9 +237,10 @@ function normalize(raw) {
     completedLapCount,
     largestImprovementMs,
     maxImpactKmh,
+    leaderGapMs,
   };
 
   return normalized;
 }
 
-export { normalize, compositeId };
+export { normalize, compositeId, parseTimestampFromFilename };

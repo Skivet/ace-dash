@@ -51,7 +51,8 @@ ace-dash/
 │           ├── kpi-cards.js
 │           ├── leaderboard.js
 │           ├── lap-chart.js
-│           ├── contact-summary.js
+│           ├── pace-summary.js
+│           ├── incidents-panel.js
 │           └── session-history.js
 ├── data/
 │   ├── results/           # ACE result files (read-only mount in Docker)
@@ -138,8 +139,10 @@ All API errors return JSON. Unknown session IDs return `404`.
 - Composite IDs (`{a, b}`) are preserved as strings; they are not converted to numbers.
 - Sensitive raw fields (`server_ip`, `player_id`, `year_of_birth`, `first_name`, `last_name`) are excluded from normalized output.
 - Lap times and rankings are derived from the `laps` array, not from `time_standings`.
-- Collision records are treated as sampled contact data points, not unique incidents.
+- Contact records are treated as sampled data points, not unique incidents. Sustained contact can produce many samples.
+- Pace metrics (best lap, average lap, lap range, gap to session best, leader gap) are computed server-side from the `laps` array.
 - Lap flag values are displayed as raw integers; their semantics are not assumed.
+- Session timestamps are parsed from result filenames matching the pattern `results_YYYYMMDD_HHMMSS_<type>.json`. When a filename contains this pattern, the parsed wall-clock time is used as the session timestamp (interpreted as server-local time). When no pattern is found, the file modification time is used as a fallback. Both `importedAt` and `fileModifiedAt` are retained separately.
 
 ## Tests
 
@@ -159,6 +162,13 @@ Tests cover:
 - Sensitive-field exclusion
 - Malformed JSON behavior
 - Session store persistence and ordering
+- Filename timestamp parsing (prefix-tolerant, no timezone conversion)
+- Timestamp fallback behavior
+- Classified driver count
+- Best-lap independence from lap order
+- Pace metrics: average lap, lap range, gap to best, leader gap
+- Penalty-to-entry association and enum label formatting
+- Empty penalties and contacts
 
 ## Current limitations
 

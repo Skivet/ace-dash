@@ -3,7 +3,8 @@ import { createSessionHeader } from './components/session-header.js';
 import { createKpiCards } from './components/kpi-cards.js';
 import { createLeaderboard } from './components/leaderboard.js';
 import { createLapChart } from './components/lap-chart.js';
-import { createContactSummary } from './components/contact-summary.js';
+import { createPaceSummary } from './components/pace-summary.js';
+import { createIncidentsPanel } from './components/incidents-panel.js';
 import { createSessionHistory } from './components/session-history.js';
 import { createLoadingState, createEmptyState, createErrorState } from './components/views.js';
 
@@ -57,14 +58,19 @@ async function renderSession(session, allSessions) {
   const lapChart = createLapChart(session);
   rightPanel.appendChild(lapChart);
 
-  const contactSummary = createContactSummary(session);
-  rightPanel.appendChild(contactSummary);
+  const paceSummary = createPaceSummary(session);
+  rightPanel.appendChild(paceSummary);
 
   grid.appendChild(rightPanel);
   shell.appendChild(grid);
 
   const history = createSessionHistory(allSessions, onSelectSession, currentSessionId);
   shell.appendChild(history);
+
+  const incidents = createIncidentsPanel(session);
+  if (incidents) {
+    shell.appendChild(incidents);
+  }
 
   app.appendChild(shell);
 }

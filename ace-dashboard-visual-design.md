@@ -28,21 +28,21 @@ The application should open directly on the latest completed session. It should 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
 │ ACE SESSION ANALYTICS       Sessions  Drivers  Tracks   ● Ready │
-├─────────────────────────────────────────────────────────────────┤
-│ NÜRBURGRING                         Sep 4, 2026  [Session ▾]     │
-│ Touristenfahrten / Practice                                    │
-├──────────────┬──────────────┬──────────────┬────────────────────┤
-│ BEST LAP     │ LAPS         │ IMPROVEMENT  │ TOP IMPACT         │
-│ 6:49.500     │ 3            │ 7.335 s      │ 146.5 km/h         │
-├─────────────────────────┬───────────────────────────────────────┤
-│ LEADERBOARD             │ COMPLETED LAPS                        │
-│                         │                                       │
-│ 1  morphy      6:49.500 │ morphy L2   ███                       │
-│ 2  luke        7:37.110 │ morphy L1   █████                     │
-│ —  skivet             — │ luke L1     ███████████████████       │
-│                         ├───────────────────────────────────────┤
-│                         │ CONTACT SUMMARY                       │
-└─────────────────────────┴───────────────────────────────────────┘
+ ├─────────────────────────────────────────────────────────────────┤
+ │ NÜRBURGRING                         Sep 4, 2026  [Session ▾]     │
+ │ Touristenfahrten / Practice                                    │
+ ├──────────────┬──────────────┬──────────────┬────────────────────┤
+ │ BEST LAP     │ LAPS         │ IMPROVEMENT  │ LEADER GAP         │
+ │ 6:49.500     │ 3            │ 7.335 s      │ 47.610 s           │
+ ├─────────────────────────┬───────────────────────────────────────┤
+ │ LEADERBOARD             │ COMPLETED LAPS                        │
+ │                         │                                       │
+ │ 1  morphy      6:49.500 │ morphy L2   ███                       │
+ │ 2  luke        7:37.110 │ morphy L1   █████                     │
+ │ —  skivet             — │ luke L1     ███████████████████       │
+ │                         ├───────────────────────────────────────┤
+ │                         │ PACE SUMMARY                          │
+ └─────────────────────────┴───────────────────────────────────────┘
 ```
 
 ## Primary navigation
@@ -88,13 +88,15 @@ The primary metrics should appear immediately beneath the session header:
 1. Best lap
 2. Completed laps
 3. Largest lap improvement
-4. Maximum recorded impact
+4. Leader gap
+
+The leader gap is the time difference between P1 and P2, calculated from normalized entry best laps. It should not be derived from `time_standings`. When fewer than two entries have completed laps, display an em dash with the detail text "Need two classified entries."
 
 Each KPI card should include:
 
 - A compact uppercase label
 - One prominent value
-- A short associated detail, such as driver name
+- A short associated detail, such as driver name or "P1 to P2"
 - Consistent number alignment
 
 On desktop, show four cards in one row. On smaller screens, use a two-by-two grid or a horizontally scrollable row when that preserves readability better.
@@ -137,17 +139,55 @@ Flags: 2 — meaning not yet verified
 
 Every hover interaction must also be available through keyboard focus or touch.
 
-## Contact summary
+## Pace summary
 
-The contact panel should be precise about what the source data represents:
+The pace summary replaces the contact summary as the primary analytical panel beneath the lap chart. It presents one row per driver/car entry:
 
-- Call the records **contact samples**, not incidents or crashes.
-- Display maximum impact speed prominently.
-- Show damaging samples and total samples as supporting data.
-- Allow future filtering between wall, car, and object contacts.
-- Include accessible explanatory text stating that sustained contact can produce many samples.
+| Column | Content |
+| --- | --- |
+| DRIVER / CAR | Driver nickname (primary), car model (secondary, muted) |
+| LAPS | Completed lap count |
+| BEST | Best lap time |
+| GAP | Gap to session best; `LEADER` or em dash for the session leader, `+x.xxx s` for others |
+| AVG | Average completed-lap time |
+| RANGE | Slowest minus fastest lap; em dash when fewer than two laps |
 
-Future use of the supplied world coordinates could include a circuit contact map, provided those coordinates can be reliably mapped to track geometry.
+The session leader row receives a restrained cyan accent. Slower entries remain white or muted; do not color them red. Entries with zero laps are visible but subdued.
+
+On desktop, render as a compact row-based table with clear column labels. On tablet and mobile, convert each row into a compact card:
+
+```text
+morphy
+911 GT3 RS (992)
+
+BEST       GAP
+6:49.500   LEADER
+
+AVERAGE    RANGE      LAPS
+6:53.168   7.335 s    2
+```
+
+All pace metrics are calculated server-side. The frontend formats them for display. Average lap times are rounded to the nearest millisecond before formatting.
+
+## Incidents & Penalties
+
+Contact information and penalties are moved into a secondary accessible disclosure panel below the session history. The panel is collapsed by default when there are no pending or noteworthy items.
+
+The disclosure contains two subsections:
+
+### Penalties
+
+Display actual ACE penalties before collision data because penalties have clearer semantics. Show driver/car entry, investigation type, penalty type, penalty time, lap count when issued, session time when issued, and pending or cleared state. Convert enum-like labels into readable text (e.g., `InvestigationType_Speeding` → "Pit-lane speeding"). Do not expose raw composite IDs.
+
+### Contact data
+
+Retain the existing contact calculations as supporting diagnostics. Show per entry: driver and car, maximum recorded impact, total contact samples, damaging contact samples, wall samples, car samples, and object samples. Sort entries by maximum impact speed descending.
+
+Continue using the language:
+
+> Contact records are sampled data points, not necessarily unique incidents. Sustained contact can produce many samples.
+
+Do not call sample counts crashes or incidents. Do not rank drivers by safety. Do not infer fault. Do not create a collision score. Do not cluster records into inferred incidents.
 
 ## Session history
 
@@ -168,13 +208,15 @@ A history row could show:
 
 - Four KPI cards in one row
 - Leaderboard on the left
-- Lap and contact panels on the right
+- Lap chart and pace summary on the right
 - Session history below the report
+- Incidents & Penalties disclosure below session history
 
 ### Tablet
 
 - Two-by-two KPI grid
 - Leaderboard above the charts
+- Pace summary follows the lap chart
 - Session selector retained in the session header
 
 ### Mobile
@@ -182,7 +224,8 @@ A history row could show:
 - Horizontally scrollable KPI cards or a two-column grid, depending on available width
 - Full-width leaderboard
 - Full-width lap chart
-- Stacked contact entries
+- Pace summary entries as compact metric cards
+- Stacked penalty and contact fields in the disclosure
 - Session selector kept near the top
 - No page-level horizontal scrolling
 
@@ -268,12 +311,13 @@ The first visual implementation should include:
 
 1. Compact application header
 2. Session context and selector
-3. Four KPI cards
+3. Four KPI cards (best lap, completed laps, best improvement, leader gap)
 4. Timing-tower leaderboard
 5. Horizontal completed-lap chart
-6. Contact summary
-7. Responsive desktop and mobile layouts
-8. Loading, empty, and no-completed-laps states
+6. Pace summary table/cards
+7. Incidents & Penalties disclosure (penalties + contact data)
+8. Responsive desktop, tablet, and mobile layouts
+9. Loading, empty, and no-completed-laps states
 
 The first version should use the supplied September 4 practice session as representative data. Once the silhouette and responsive behavior feel right, the UI can be connected to the normalizer and API described in `ace-dashboard-data-and-architecture.md`.
 

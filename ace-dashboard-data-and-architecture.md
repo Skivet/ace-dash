@@ -138,6 +138,10 @@ Every raw export should be converted into a stable internal representation befor
         { number: 2, timeMs: 409500, flags: 2 }
       ],
       bestLapMs: 409500,
+      completedLapCount: 2,
+      gapToBestMs: 0,
+      averageLapMs: 413168,
+      lapRangeMs: 7335,
       contacts: {
         sampleCount: 144,
         damagingSampleCount: 109,
@@ -145,11 +149,43 @@ Every raw export should be converted into a stable internal representation befor
       },
       penalties: []
     }
-  ]
+  ],
+  leaderGapMs: 47610
 }
 ```
 
 This normalized shape becomes the contract between the importer and dashboard. If ACE changes its export format, only the importer should need to change.
+
+### Pace metric definitions
+
+Pace metrics are computed server-side in the normalizer and exposed as nullable numeric fields in milliseconds. The frontend is responsible for formatting them for display.
+
+| Field | Definition |
+| --- | --- |
+| `completedLapCount` | Number of recorded completed laps for the entry |
+| `bestLapMs` | Minimum completed-lap time for the entry; `null` when zero laps |
+| `gapToBestMs` | Entry best lap minus session best lap; `null` when the entry has no laps |
+| `averageLapMs` | Sum of completed-lap times divided by count, rounded to the nearest millisecond; `null` when zero laps |
+| `lapRangeMs` | Slowest completed lap minus fastest completed lap; `null` when fewer than two laps |
+| `leaderGapMs` | Second-fastest classified entry's best lap minus fastest classified entry's best lap; `null` when fewer than two entries have completed laps |
+
+All recorded completed laps are included in these calculations regardless of lap flag value. Flag semantics are unverified and no validity filter is applied. The calculation code is structured so a verified validity filter can be introduced later without rewriting the UI.
+
+### Leader gap behavior
+
+The leader gap represents the time difference between P1 and P2. It is calculated from normalized entry best laps, not from `time_standings`. Driver/car combinations are treated as separate entries. When fewer than two entries have completed laps, the value is `null` and the frontend displays an em dash.
+
+### Contact records versus incidents
+
+ACE collision data consists of sampled contact records, not unique incidents. A sustained contact event can produce hundreds of samples. The dashboard:
+
+- Presents contact data as supporting diagnostics, not as a primary performance measure.
+- Uses the term **contact samples** rather than incidents or crashes.
+- Does not cluster samples into inferred incidents.
+- Does not rank drivers by safety or infer fault.
+- Displays maximum impact speed, total sample count, and damaging sample count per entry.
+
+This distinction is documented in the UI via explanatory text beneath the contact-data subsection.
 
 ## Dashboard layout
 
@@ -161,7 +197,7 @@ Track, layout, session type, and date.
 
 ### 2. KPI strip
 
-Best lap, completed laps, largest improvement, and maximum impact.
+Best lap, completed laps, largest improvement, and leader gap.
 
 ### 3. Leaderboard
 
@@ -171,15 +207,22 @@ Rank, driver, car, and best lap.
 
 Every completed lap, sortable by time or chronological order.
 
-### 5. Contact summary
+### 5. Pace summary
 
-Maximum impact and sampled-contact metrics, with a clear warning that samples are not necessarily unique incidents.
+One row per driver/car entry showing completed laps, best lap, gap to session best, average lap, and lap-time range. The session leader is highlighted with a restrained cyan accent. Entries without laps are visible but subdued.
 
-### 6. Future detail views
+### 6. Incidents & Penalties
 
-Driver history, car history, penalties, lap consistency, and collision-location maps.
+An accessible disclosure panel containing:
 
-The desktop layout can closely match the PDF:
+- **Penalties** — actual ACE penalties with driver/car, investigation type, penalty type, penalty time, lap count, session time, and pending/cleared state.
+- **Contact data** — per-entry maximum impact, total contact samples, and damaging sample count, with a note that samples are not necessarily unique incidents.
+
+### 7. Future detail views
+
+Driver history, car history, lap consistency, and collision-location maps.
+
+The desktop layout:
 
 ```text
 Header
@@ -187,7 +230,11 @@ Header
 
 [ Leaderboard       ] [ Completed laps         ]
 [                   ] [                         ]
-[                   ] [ Contact summary         ]
+[                   ] [ Pace summary            ]
+
+Session history
+
+[Incidents & Penalties ▾]
 ```
 
 On mobile, the panels should collapse into one vertical column.
@@ -245,7 +292,9 @@ ace-dashboard/
 │           ├── kpi-cards.js
 │           ├── leaderboard.js
 │           ├── lap-chart.js
-│           └── contact-summary.js
+│           ├── pace-summary.js
+│           ├── incidents-panel.js
+│           └── session-history.js
 └── data/
     ├── results/
     │   └── results_YYYYMMDD_HHMMSS_practice.json
