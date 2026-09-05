@@ -143,7 +143,7 @@ describe('normalize - session 1 (practice with laps)', () => {
     assert.ok(morphy, 'morphy should exist');
     assert.equal(morphy.completedLapCount, 2);
     assert.equal(morphy.bestLapMs, 409500);
-    assert.equal(morphy.gapToBestMs, 0);
+    assert.equal(morphy.gapToLeaderMs, 0);
     assert.equal(morphy.averageLapMs, 413168);
     assert.equal(morphy.lapRangeMs, 7335);
   });
@@ -153,7 +153,7 @@ describe('normalize - session 1 (practice with laps)', () => {
     assert.ok(luke, 'lukeyeldukey should exist');
     assert.equal(luke.completedLapCount, 1);
     assert.equal(luke.bestLapMs, 457110);
-    assert.equal(luke.gapToBestMs, 47610);
+    assert.equal(luke.gapToLeaderMs, 47610);
     assert.equal(luke.averageLapMs, 457110);
     assert.equal(luke.lapRangeMs, null);
   });
@@ -163,7 +163,7 @@ describe('normalize - session 1 (practice with laps)', () => {
     assert.ok(skivet, 'skivet should exist');
     assert.equal(skivet.completedLapCount, 0);
     assert.equal(skivet.bestLapMs, null);
-    assert.equal(skivet.gapToBestMs, null);
+    assert.equal(skivet.gapToLeaderMs, null);
     assert.equal(skivet.averageLapMs, null);
     assert.equal(skivet.lapRangeMs, null);
   });
@@ -453,7 +453,7 @@ describe('normalize - pace metric edge cases', () => {
       ],
     }));
     assert.equal(s.leaderGapMs, null);
-    assert.equal(s.entries[0].gapToBestMs, 0);
+    assert.equal(s.entries[0].gapToLeaderMs, 0);
   });
 
   it('handles same driver in multiple cars with separate pace metrics', () => {
@@ -478,10 +478,10 @@ describe('normalize - pace metric edge cases', () => {
     assert.equal(carAEntry.bestLapMs, 400000);
     assert.equal(carAEntry.averageLapMs, 405000);
     assert.equal(carAEntry.lapRangeMs, 10000);
-    assert.equal(carAEntry.gapToBestMs, 10000);
+    assert.equal(carAEntry.gapToLeaderMs, 10000);
     assert.equal(carBEntry.completedLapCount, 1);
     assert.equal(carBEntry.bestLapMs, 390000);
-    assert.equal(carBEntry.gapToBestMs, 0);
+    assert.equal(carBEntry.gapToLeaderMs, 0);
     assert.equal(carBEntry.averageLapMs, 390000);
     assert.equal(carBEntry.lapRangeMs, null);
     assert.equal(s.leaderGapMs, 10000);
@@ -580,6 +580,163 @@ describe('normalize - pace metric edge cases', () => {
     assert.equal(s.entries[0].penalties[0].givenLapCount, 3);
     assert.equal(s.entries[0].penalties[0].givenSessionTimeMs, 120000);
     assert.equal(s.entries[0].penalties[0].clearedSessionTimeMs, 0);
+  });
+});
+
+describe('normalize - pace summary canonical structure', () => {
+  let session;
+
+  before(async () => {
+    const raw = await loadFixture('session1.json');
+    session = normalize(raw);
+  });
+
+  it('has a paceSummary array on the normalized session', () => {
+    assert.ok(Array.isArray(session.paceSummary), 'paceSummary should be an array');
+  });
+
+  it('has exactly two pace summary entries (classified only)', () => {
+    assert.equal(session.paceSummary.length, 2);
+  });
+
+  it('excludes entries with zero completed laps from paceSummary', () => {
+    const hasZeroLaps = session.paceSummary.some(e => e.completedLapCount === 0);
+    assert.equal(hasZeroLaps, false, 'paceSummary should not include entries with zero laps');
+  });
+
+  it('has canonical fields on each pace summary entry', () => {
+    for (const entry of session.paceSummary) {
+      assert.ok(typeof entry.entryId === 'string', 'entryId should be a string');
+      assert.ok(typeof entry.driverName === 'string', 'driverName should be a string');
+      assert.ok(typeof entry.carName === 'string', 'carName should be a string');
+      assert.ok(typeof entry.completedLapCount === 'number', 'completedLapCount should be a number');
+      assert.ok(entry.bestLapMs !== null, 'bestLapMs should not be null');
+      assert.ok(entry.averageLapMs !== null, 'averageLapMs should not be null');
+      assert.ok(typeof entry.gapToLeaderMs === 'number', 'gapToLeaderMs should be a number');
+      assert.ok(typeof entry.isLeader === 'boolean', 'isLeader should be a boolean');
+    }
+  });
+
+  it('has exactly one leader in paceSummary', () => {
+    const leaders = session.paceSummary.filter(e => e.isLeader);
+    assert.equal(leaders.length, 1, 'should have exactly one leader');
+  });
+
+  it('leader has gapToLeaderMs of 0', () => {
+    const leader = session.paceSummary.find(e => e.isLeader);
+    assert.equal(leader.gapToLeaderMs, 0);
+  });
+
+  it('P2 has correct gapToLeaderMs', () => {
+    const p2 = session.paceSummary.find(e => !e.isLeader);
+    assert.equal(p2.gapToLeaderMs, 47610);
+  });
+
+  it('leaderGapMs matches P2 gap', () => {
+    assert.equal(session.leaderGapMs, 47610);
+  });
+
+  it('sorts paceSummary by bestLapMs ascending', () => {
+    const bestLaps = session.paceSummary.map(e => e.bestLapMs);
+    for (let i = 1; i < bestLaps.length; i++) {
+      assert.ok(bestLaps[i - 1] <= bestLaps[i], 'paceSummary should be sorted by bestLapMs ascending');
+    }
+  });
+
+  it('uses entryId as identity, not driverName', () => {
+    const ids = session.paceSummary.map(e => e.entryId);
+    const uniqueIds = [...new Set(ids)];
+    assert.equal(ids.length, uniqueIds.length, 'each paceSummary entry should have a unique entryId');
+  });
+
+  it('morphy paceSummary entry has correct metrics', () => {
+    const morphy = session.paceSummary.find(e => e.driverName === 'morphy');
+    assert.ok(morphy, 'morphy should be in paceSummary');
+    assert.equal(morphy.completedLapCount, 2);
+    assert.equal(morphy.bestLapMs, 409500);
+    assert.equal(morphy.averageLapMs, 413168);
+    assert.equal(morphy.rangeMs, 7335);
+    assert.equal(morphy.gapToLeaderMs, 0);
+    assert.equal(morphy.isLeader, true);
+  });
+
+  it('lukeyeldukey Porsche 911 GT3 R Rennsport has correct metrics', () => {
+    const luke = session.paceSummary.find(e =>
+      e.driverName === 'lukeyeldukey' && e.carName.includes('GT3 R')
+    );
+    assert.ok(luke, 'lukeyeldukey in GT3 R should be in paceSummary');
+    assert.equal(luke.completedLapCount, 1);
+    assert.equal(luke.bestLapMs, 457110);
+    assert.equal(luke.averageLapMs, 457110);
+    assert.equal(luke.rangeMs, null);
+    assert.equal(luke.gapToLeaderMs, 47610);
+    assert.equal(luke.isLeader, false);
+  });
+
+  it('skivet is excluded from paceSummary', () => {
+    const skivet = session.paceSummary.find(e => e.driverName === 'skivet');
+    assert.equal(skivet, undefined, 'skivet should not be in paceSummary');
+  });
+
+  it('second lukeyeldukey entry is excluded from paceSummary', () => {
+    const lukeSecond = session.paceSummary.filter(e =>
+      e.driverName === 'lukeyeldukey' && e.carName.includes('GT3 RS')
+    );
+    assert.equal(lukeSecond.length, 0, 'lukeyeldukey in GT3 RS with 0 laps should not be in paceSummary');
+  });
+
+  it('session2 has empty paceSummary', () => {
+    const raw = {
+      track_name: 'Test',
+      track_layout_name: 'Layout',
+      session_name: 'Practice',
+      session_type: 'Practice',
+      is_completed: false,
+      specialization: { base: { session_duration_ms: 3600000 } },
+      drivers: [],
+      cars: [],
+      driver_standings: [],
+      car_standings: [],
+      laps: [],
+      collisions: [],
+    };
+    const s = normalize(raw);
+    assert.ok(Array.isArray(s.paceSummary), 'paceSummary should exist');
+    assert.equal(s.paceSummary.length, 0, 'paceSummary should be empty when no classified entries');
+  });
+});
+
+describe('normalize - no undefined/NaN in rendered output', () => {
+  it('produces no undefined values in paceSummary', () => {
+    const driver = { guid: { a: '1', b: '2' }, nickname: 'test', nation: 'USA' };
+    const car = { car_id: { a: '3', b: '4' }, model_displayname: 'Car', race_number: 1 };
+    const s = normalize(buildMinimal({
+      drivers: [driver], cars: [car],
+      driver_standings: [{ a: '1', b: '2' }],
+      car_standings: [{ car_id: { a: '3', b: '4' } }],
+      laps: [
+        { driver_key: { a: '1', b: '2' }, car_key: { a: '3', b: '4' }, time: 400000, flags: 1 },
+      ],
+    }));
+    const json = JSON.stringify(s.paceSummary);
+    assert.ok(!json.includes('undefined'), 'should not contain "undefined"');
+    assert.ok(!json.includes('NaN'), 'should not contain "NaN"');
+    assert.ok(!json.includes('[object Object]'), 'should not contain "[object Object]"');
+  });
+
+  it('produces no undefined values in entries', () => {
+    const driver = { guid: { a: '1', b: '2' }, nickname: 'test', nation: 'USA' };
+    const car = { car_id: { a: '3', b: '4' }, model_displayname: 'Car', race_number: 1 };
+    const s = normalize(buildMinimal({
+      drivers: [driver], cars: [car],
+      driver_standings: [{ a: '1', b: '2' }],
+      car_standings: [{ car_id: { a: '3', b: '4' } }],
+      laps: [],
+    }));
+    const json = JSON.stringify(s.entries);
+    assert.ok(!json.includes('undefined'), 'should not contain "undefined"');
+    assert.ok(!json.includes('NaN'), 'should not contain "NaN"');
+    assert.ok(!json.includes('[object Object]'), 'should not contain "[object Object]"');
   });
 });
 

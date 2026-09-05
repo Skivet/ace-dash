@@ -188,12 +188,26 @@ function normalize(raw) {
     return 0;
   });
 
-  for (const entry of entries) {
-    entry.gapToBestMs = entry.bestLapMs !== null && bestLapMs !== null ? entry.bestLapMs - bestLapMs : null;
-  }
-
   const classifiedEntries = entries.filter(e => e.bestLapMs !== null);
   const leaderGapMs = classifiedEntries.length >= 2 ? classifiedEntries[1].bestLapMs - classifiedEntries[0].bestLapMs : null;
+  const leaderBestLapMs = classifiedEntries.length > 0 ? classifiedEntries[0].bestLapMs : null;
+
+  for (const entry of entries) {
+    entry.gapToLeaderMs = entry.bestLapMs !== null && leaderBestLapMs !== null ? entry.bestLapMs - leaderBestLapMs : null;
+    entry.isLeader = entry.bestLapMs === leaderBestLapMs;
+  }
+
+  const paceSummary = classifiedEntries.map(e => ({
+    entryId: e.id,
+    driverName: e.driver.nickname,
+    carName: e.car.model,
+    completedLapCount: e.completedLapCount,
+    bestLapMs: e.bestLapMs,
+    averageLapMs: e.averageLapMs,
+    rangeMs: e.lapRangeMs,
+    gapToLeaderMs: e.gapToLeaderMs,
+    isLeader: e.isLeader,
+  }));
 
   let largestImprovementMs = null;
   for (const entry of entries) {
@@ -233,6 +247,7 @@ function normalize(raw) {
       durationMs: normalizeTime(raw.specialization?.base?.session_duration_ms),
     },
     entries,
+    paceSummary,
     bestLapMs,
     completedLapCount,
     largestImprovementMs,

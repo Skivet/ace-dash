@@ -8,5 +8,8 @@
     "test": "node --test test/**/*.test.js",
     "start": "node server/server.js",
     "dev": "node server/server.js"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.63.0"
   }
 }

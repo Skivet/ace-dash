@@ -64,6 +64,8 @@ class SessionStore {
       bestLapMs: normalized.bestLapMs,
       largestImprovementMs: normalized.largestImprovementMs,
       maxImpactKmh: normalized.maxImpactKmh,
+      leaderGapMs: normalized.leaderGapMs,
+      paceSummary: normalized.paceSummary,
       entries: normalized.entries,
       source: sourceMeta,
     };

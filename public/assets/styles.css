@@ -1140,85 +1140,122 @@ body {
     display: none;
   }
 
-  .pace-summary__table {
+  .pace-summary__header {
     display: none;
   }
 
-  .pace-summary__mobile {
+  .pace-summary__table {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
   }
 
-  .pace-summary__mobile-card {
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 12px 16px;
-  }
-
-  .pace-summary__mobile-card--leader {
-    border-color: var(--accent-cyan);
-    background: rgba(0, 212, 255, 0.06);
-  }
-
-  .pace-summary__mobile-header {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    margin-bottom: 10px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .pace-summary__mobile-driver {
-    font-size: 0.9375rem;
-    font-weight: 700;
-    color: var(--text-primary);
-  }
-
-  .pace-summary__mobile-card--leader .pace-summary__mobile-driver {
-    color: var(--accent-cyan);
-  }
-
-  .pace-summary__mobile-car {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-  }
-
-  .pace-summary__mobile-metrics {
+  .pace-summary__row {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 8px 16px;
+    padding: 12px 16px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
   }
 
-  .pace-summary__mobile-metric {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+  .pace-summary__row:last-child {
+    border-bottom: none;
   }
 
-  .pace-summary__mobile-metric-label {
-    font-size: 0.625rem;
+  .pace-summary__row:hover {
+    background: inherit;
+  }
+
+  .pace-summary__col-driver {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .pace-summary__driver {
+    font-size: 0.9375rem;
+  }
+
+  .pace-summary__col-laps {
+    grid-column: 1 / -1;
+    text-align: left;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+
+  .pace-summary__col-laps::before {
+    content: 'LAPS  ';
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--text-muted);
   }
 
-  .pace-summary__mobile-metric-value {
-    font-family: var(--font-mono-tabular);
-    font-size: 0.8125rem;
-    font-variant-numeric: tabular-nums;
-    color: var(--text-primary);
+  .pace-summary__col-best {
+    grid-column: 1;
   }
 
-  .pace-summary__mobile-metric-value--gap {
-    color: var(--text-secondary);
+  .pace-summary__col-best::before {
+    content: 'BEST  ';
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-size: 0.625rem;
   }
 
-  .pace-summary__mobile-card--leader .pace-summary__mobile-metric-value--gap {
-    color: var(--accent-cyan);
+  .pace-summary__col-gap {
+    grid-column: 2;
+  }
+
+  .pace-summary__col-gap::before {
+    content: 'GAP  ';
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-size: 0.625rem;
+  }
+
+  .pace-summary__col-avg {
+    grid-column: 1;
+  }
+
+  .pace-summary__col-avg::before {
+    content: 'AVG  ';
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-size: 0.625rem;
+  }
+
+  .pace-summary__col-range {
+    grid-column: 2;
+  }
+
+  .pace-summary__col-range::before {
+    content: 'RANGE  ';
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-size: 0.625rem;
+  }
+
+  .pace-summary__row--leader {
+    border-color: var(--accent-cyan);
+    background: rgba(0, 212, 255, 0.06);
+  }
+
+  .pace-summary__row:has(.pace-summary__col-laps:contains('0')) .pace-summary__col-best,
+  .pace-summary__row:has(.pace-summary__col-laps:contains('0')) .pace-summary__col-gap,
+  .pace-summary__row:has(.pace-summary__col-laps:contains('0')) .pace-summary__col-avg,
+  .pace-summary__row:has(.pace-summary__col-laps:contains('0')) .pace-summary__col-range {
+    color: var(--text-muted);
   }
 }
 
