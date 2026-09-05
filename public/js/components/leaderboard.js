@@ -10,82 +10,80 @@ export function createLeaderboard(session) {
   title.textContent = 'LEADERBOARD';
   section.appendChild(title);
 
-  const table = document.createElement('table');
-  table.className = 'leaderboard__table';
-  table.setAttribute('summary', 'Driver standings by best lap time');
+  const list = document.createElement('ul');
+  list.className = 'leaderboard__list';
+  list.setAttribute('role', 'list');
 
-  const thead = document.createElement('thead');
-  thead.innerHTML = `
-    <tr>
-      <th scope="col">Pos</th>
-      <th scope="col">Driver</th>
-      <th scope="col">Car</th>
-      <th scope="col" aria-label="Best lap time">Best Lap</th>
-    </tr>
-  `;
-  table.appendChild(thead);
-
-  const tbody = document.createElement('tbody');
   const classified = session.entries.filter(e => e.bestLapMs !== null);
   const unclassified = session.entries.filter(e => e.bestLapMs === null);
 
   let pos = 1;
   for (const entry of classified) {
-    const tr = document.createElement('tr');
-    if (entry.bestLapMs === session.bestLapMs) tr.className = 'leaderboard__row--best';
+    const li = document.createElement('li');
+    li.className = 'leaderboard__row';
+    if (entry.bestLapMs === session.bestLapMs) li.className += ' leaderboard__row--best';
 
-    const tdPos = document.createElement('td');
-    tdPos.className = 'leaderboard__pos';
-    tdPos.textContent = String(pos);
-    tr.appendChild(tdPos);
+    const posSpan = document.createElement('span');
+    posSpan.className = 'leaderboard__pos';
+    posSpan.textContent = String(pos);
 
-    const tdDriver = document.createElement('td');
-    tdDriver.className = 'leaderboard__driver';
-    tdDriver.textContent = entry.driver.nickname;
-    tr.appendChild(tdDriver);
+    const identity = document.createElement('div');
+    identity.className = 'leaderboard__identity';
 
-    const tdCar = document.createElement('td');
-    tdCar.className = 'leaderboard__car';
-    tdCar.textContent = entry.car.model;
-    tr.appendChild(tdCar);
+    const driverSpan = document.createElement('span');
+    driverSpan.className = 'leaderboard__driver';
+    driverSpan.textContent = entry.driver.nickname;
 
-    const tdTime = document.createElement('td');
-    tdTime.className = 'leaderboard__time';
-    tdTime.textContent = formatTime(entry.bestLapMs);
-    tr.appendChild(tdTime);
+    const carSpan = document.createElement('span');
+    carSpan.className = 'leaderboard__car';
+    carSpan.textContent = entry.car.model;
 
-    tbody.appendChild(tr);
+    identity.appendChild(driverSpan);
+    identity.appendChild(carSpan);
+
+    const timeSpan = document.createElement('span');
+    timeSpan.className = 'leaderboard__time';
+    timeSpan.textContent = formatTime(entry.bestLapMs);
+
+    li.appendChild(posSpan);
+    li.appendChild(identity);
+    li.appendChild(timeSpan);
+    list.appendChild(li);
     pos++;
   }
 
   for (const entry of unclassified) {
-    const tr = document.createElement('tr');
-    tr.className = 'leaderboard__row--no-lap';
+    const li = document.createElement('li');
+    li.className = 'leaderboard__row leaderboard__row--no-lap';
 
-    const tdPos = document.createElement('td');
-    tdPos.className = 'leaderboard__pos';
-    tdPos.textContent = '—';
-    tr.appendChild(tdPos);
+    const posSpan = document.createElement('span');
+    posSpan.className = 'leaderboard__pos';
+    posSpan.textContent = '—';
 
-    const tdDriver = document.createElement('td');
-    tdDriver.className = 'leaderboard__driver';
-    tdDriver.textContent = entry.driver.nickname;
-    tr.appendChild(tdDriver);
+    const identity = document.createElement('div');
+    identity.className = 'leaderboard__identity';
 
-    const tdCar = document.createElement('td');
-    tdCar.className = 'leaderboard__car';
-    tdCar.textContent = entry.car.model;
-    tr.appendChild(tdCar);
+    const driverSpan = document.createElement('span');
+    driverSpan.className = 'leaderboard__driver';
+    driverSpan.textContent = entry.driver.nickname;
 
-    const tdTime = document.createElement('td');
-    tdTime.className = 'leaderboard__time';
-    tdTime.textContent = '—';
-    tr.appendChild(tdTime);
+    const carSpan = document.createElement('span');
+    carSpan.className = 'leaderboard__car';
+    carSpan.textContent = entry.car.model;
 
-    tbody.appendChild(tr);
+    identity.appendChild(driverSpan);
+    identity.appendChild(carSpan);
+
+    const timeSpan = document.createElement('span');
+    timeSpan.className = 'leaderboard__time';
+    timeSpan.textContent = '—';
+
+    li.appendChild(posSpan);
+    li.appendChild(identity);
+    li.appendChild(timeSpan);
+    list.appendChild(li);
   }
 
-  table.appendChild(tbody);
-  section.appendChild(table);
+  section.appendChild(list);
   return section;
 }

@@ -62,6 +62,8 @@ class SessionStore {
       session: normalized.session,
       completedLapCount: normalized.completedLapCount,
       bestLapMs: normalized.bestLapMs,
+      largestImprovementMs: normalized.largestImprovementMs,
+      maxImpactKmh: normalized.maxImpactKmh,
       entries: normalized.entries,
       source: sourceMeta,
     };

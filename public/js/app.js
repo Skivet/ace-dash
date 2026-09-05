@@ -36,20 +36,23 @@ async function init() {
 async function renderSession(session, allSessions) {
   app.innerHTML = '';
 
+  const shell = document.createElement('div');
+  shell.className = 'dashboard-shell';
+
   const header = createSessionHeader(session, allSessions, onSelectSession);
-  app.appendChild(header);
+  shell.appendChild(header);
 
   const kpi = createKpiCards(session);
-  app.appendChild(kpi);
+  shell.appendChild(kpi);
 
-  const main = document.createElement('main');
-  main.className = 'dashboard__main';
+  const grid = document.createElement('div');
+  grid.className = 'session-grid';
 
   const leaderboard = createLeaderboard(session);
-  main.appendChild(leaderboard);
+  grid.appendChild(leaderboard);
 
   const rightPanel = document.createElement('div');
-  rightPanel.className = 'dashboard__right';
+  rightPanel.className = 'session-grid__right';
 
   const lapChart = createLapChart(session);
   rightPanel.appendChild(lapChart);
@@ -57,11 +60,13 @@ async function renderSession(session, allSessions) {
   const contactSummary = createContactSummary(session);
   rightPanel.appendChild(contactSummary);
 
-  main.appendChild(rightPanel);
-  app.appendChild(main);
+  grid.appendChild(rightPanel);
+  shell.appendChild(grid);
 
-  const history = createSessionHistory(allSessions, onSelectSession);
-  app.appendChild(history);
+  const history = createSessionHistory(allSessions, onSelectSession, currentSessionId);
+  shell.appendChild(history);
+
+  app.appendChild(shell);
 }
 
 function onSelectSession(session) {

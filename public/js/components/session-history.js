@@ -1,6 +1,6 @@
 import { formatDateTime, formatDate } from '../formatters.js';
 
-export function createSessionHistory(sessions, onSelect) {
+export function createSessionHistory(sessions, onSelect, selectedId) {
   const section = document.createElement('section');
   section.className = 'session-history';
   section.setAttribute('aria-label', 'Session history');
@@ -20,6 +20,9 @@ export function createSessionHistory(sessions, onSelect) {
     const button = document.createElement('button');
     button.className = 'session-history__btn';
     button.setAttribute('aria-label', `View session: ${s.track.name}, ${s.session.type}, ${formatDateTime(s.source.importedAt)}`);
+    if (s.id === selectedId) {
+      button.setAttribute('aria-selected', 'true');
+    }
 
     const date = document.createElement('span');
     date.className = 'session-history__date';

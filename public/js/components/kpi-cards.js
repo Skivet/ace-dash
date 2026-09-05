@@ -12,19 +12,19 @@ export function createKpiCards(session) {
       detail: session.bestLapMs !== null ? getBestLapDriver(session) : '',
     },
     {
-      label: 'LAPS',
+      label: 'COMPLETED LAPS',
       value: String(session.completedLapCount),
       detail: session.entriesCount > 0 ? `${session.entriesCount} driver${session.entriesCount > 1 ? 's' : ''}` : '',
     },
     {
-      label: 'IMPROVEMENT',
+      label: 'BEST IMPROVEMENT',
       value: session.largestImprovementMs !== null ? formatTimeDelta(session.largestImprovementMs) : '—',
-      detail: session.largestImprovementMs !== null ? 'largest gain' : '',
+      detail: session.largestImprovementMs !== null ? getImprovementDriver(session) : '',
     },
     {
       label: 'TOP IMPACT',
       value: formatSpeed(session.maxImpactKmh),
-      detail: session.maxImpactKmh > 0 ? 'maximum recorded' : '',
+      detail: session.maxImpactKmh > 0 ? getTopImpactDriver(session) : '',
     },
   ];
 
@@ -59,4 +59,24 @@ function getBestLapDriver(session) {
   return entry ? entry.driver.nickname : '';
 }
 
+function getImprovementDriver(session) {
+  if (!session.entries || session.largestImprovementMs === null) return '';
+  let bestDriver = '';
+  for (const entry of session.entries) {
+    if (entry.laps.length >= 2) {
+      const sorted = [...entry.laps].sort((a, b) => a.timeMs - b.timeMs);
+      const improvement = sorted[sorted.length - 1].timeMs - sorted[0].timeMs;
+      if (improvement === session.largestImprovementMs) {
+        bestDriver = entry.driver.nickname;
+        break;
+      }
+    }
+  }
+  return bestDriver;
+}
 
+function getTopImpactDriver(session) {
+  if (!session.entries || session.maxImpactKmh <= 0) return '';
+  const entry = session.entries.find(e => e.contacts.maximumImpactKmh === session.maxImpactKmh);
+  return entry ? entry.driver.nickname : '';
+}

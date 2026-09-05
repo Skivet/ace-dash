@@ -26,7 +26,7 @@ export function createLapChart(session) {
       timeMs: l.timeMs,
       flags: l.flags,
     }))
-  ).sort((a, b) => a.timeMs - b.timeMs);
+  );
 
   const maxTime = Math.max(...allLaps.map(l => l.timeMs));
   const minTime = Math.min(...allLaps.map(l => l.timeMs));
@@ -42,14 +42,14 @@ export function createLapChart(session) {
     row.className = 'lap-chart__row';
 
     const label = document.createElement('span');
-    label.className = 'lap-chart__label';
+    label.className = 'lap-chart__label' + (lap.timeMs === session.bestLapMs ? ' lap-chart__label--best' : '');
     label.textContent = `${lap.driverNickname} L${lap.lapNumber}`;
 
     const barWrapper = document.createElement('div');
     barWrapper.className = 'lap-chart__bar-wrapper';
 
     const bar = document.createElement('div');
-    bar.className = 'lap-chart__bar';
+    bar.className = 'lap-chart__bar' + (lap.timeMs === session.bestLapMs ? ' lap-chart__bar--best' : '');
     const pct = Math.max(2, (lap.timeMs - baseline) * scale);
     bar.style.width = `${pct}%`;
     bar.setAttribute('role', 'img');
@@ -58,7 +58,7 @@ export function createLapChart(session) {
     );
 
     const timeLabel = document.createElement('span');
-    timeLabel.className = 'lap-chart__time';
+    timeLabel.className = 'lap-chart__time' + (lap.timeMs === session.bestLapMs ? ' lap-chart__time--best' : '');
     timeLabel.textContent = formatTime(lap.timeMs);
 
     const flagLabel = document.createElement('span');
@@ -79,34 +79,12 @@ export function createLapChart(session) {
   baselineLabel.className = 'lap-chart__baseline';
   baselineLabel.textContent = `Baseline: ${formatTime(Math.round(baseline))}`;
 
-  const table = document.createElement('table');
-  table.className = 'lap-chart__table';
-  table.setAttribute('summary', 'All completed laps in chronological order by time');
-  const thead = document.createElement('thead');
-  thead.innerHTML = '<tr><th scope="col">Driver</th><th scope="col">Lap</th><th scope="col">Time</th><th scope="col">Flag</th></tr>';
-  const tbody = document.createElement('tbody');
-  for (const lap of allLaps) {
-    const tr = document.createElement('tr');
-    const td1 = document.createElement('td'); td1.textContent = lap.driverNickname;
-    const td2 = document.createElement('td'); td2.textContent = `L${lap.lapNumber}`;
-    const td3 = document.createElement('td'); td3.textContent = formatTime(lap.timeMs);
-    const td4 = document.createElement('td'); td4.textContent = `Unknown (${lap.flags})`;
-    tr.appendChild(td1);
-    tr.appendChild(td2);
-    tr.appendChild(td3);
-    tr.appendChild(td4);
-    tbody.appendChild(tr);
-  }
-  table.appendChild(thead);
-  table.appendChild(tbody);
-
   const screenReaderNote = document.createElement('p');
   screenReaderNote.className = 'sr-only';
   screenReaderNote.textContent = 'Lap times shown as horizontal bars. Flag values 1 and 2 are raw ACE values whose meanings are not yet verified.';
 
   section.appendChild(chart);
   section.appendChild(baselineLabel);
-  section.appendChild(table);
   section.appendChild(screenReaderNote);
 
   return section;

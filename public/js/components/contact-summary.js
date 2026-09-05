@@ -19,52 +19,40 @@ export function createContactSummary(session) {
     return section;
   }
 
-  const table = document.createElement('table');
-  table.className = 'contact-summary__table';
-  table.setAttribute('summary', 'Contact sample statistics per car');
+  const metrics = document.createElement('div');
+  metrics.className = 'contact-summary__metrics';
 
-  const thead = document.createElement('thead');
-  thead.innerHTML = `
-    <tr>
-      <th scope="col">Driver</th>
-      <th scope="col">Car</th>
-      <th scope="col">Samples</th>
-      <th scope="col">Damaging</th>
-      <th scope="col">Max Impact</th>
-    </tr>
-  `;
-  table.appendChild(thead);
-
-  const tbody = document.createElement('tbody');
   for (const entry of entries) {
-    const tr = document.createElement('tr');
     const c = entry.contacts;
+    const metric = document.createElement('div');
+    metric.className = 'contact-summary__metric';
 
-    const tdDriver = document.createElement('td');
-    tdDriver.textContent = entry.driver.nickname;
-    tr.appendChild(tdDriver);
+    const driver = document.createElement('div');
+    driver.className = 'contact-summary__driver';
+    driver.textContent = entry.driver.nickname;
 
-    const tdCar = document.createElement('td');
-    tdCar.textContent = entry.car.model;
-    tr.appendChild(tdCar);
+    const impact = document.createElement('div');
+    impact.className = 'contact-summary__impact';
+    if (c.maximumImpactKmh > 120) {
+      impact.className += ' contact-summary__impact--critical';
+    } else if (c.maximumImpactKmh > 80) {
+      impact.className += ' contact-summary__impact--warning';
+    } else {
+      impact.className += ' contact-summary__impact--neutral';
+    }
+    impact.textContent = formatSpeed(c.maximumImpactKmh);
 
-    const tdSamples = document.createElement('td');
-    tdSamples.textContent = String(c.sampleCount);
-    tr.appendChild(tdSamples);
+    const car = document.createElement('div');
+    car.className = 'contact-summary__car';
+    car.textContent = `#${entry.car.number} · ${c.damagingSampleCount} damaging samples`;
 
-    const tdDamaging = document.createElement('td');
-    tdDamaging.textContent = String(c.damagingSampleCount);
-    tr.appendChild(tdDamaging);
-
-    const tdImpact = document.createElement('td');
-    tdImpact.className = c.maximumImpactKmh > 100 ? 'contact-summary__impact--high' : '';
-    tdImpact.textContent = formatSpeed(c.maximumImpactKmh);
-    tr.appendChild(tdImpact);
-
-    tbody.appendChild(tr);
+    metric.appendChild(driver);
+    metric.appendChild(impact);
+    metric.appendChild(car);
+    metrics.appendChild(metric);
   }
-  table.appendChild(tbody);
-  section.appendChild(table);
+
+  section.appendChild(metrics);
 
   const note = document.createElement('p');
   note.className = 'contact-summary__note';

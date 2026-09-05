@@ -116,10 +116,9 @@ function normalize(raw) {
     const entryId = `${driverKey}:${carKey}`;
     const entryLaps = lapsRaw
       .map(normalizeLap)
-      .filter(l => l.driverKey === driverKey && l.carKey === carKey && l.timeMs > 0)
-      .sort((a, b) => a.timeMs - b.timeMs);
+      .filter(l => l.driverKey === driverKey && l.carKey === carKey && l.timeMs > 0);
 
-    const bestLapMs = entryLaps.length > 0 ? entryLaps[0].timeMs : null;
+    const bestLapMs = entryLaps.length > 0 ? Math.min(...entryLaps.map(l => l.timeMs)) : null;
 
     entries.push({
       id: entryId,

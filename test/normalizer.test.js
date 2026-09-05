@@ -210,6 +210,28 @@ describe('normalize - edge cases', () => {
     assert.equal(s.entries.length, 0);
   });
 
+  it('assigns lap numbers in chronological order, not by fastest time', () => {
+    const driver = { guid: { a: '1', b: '2' }, nickname: 'morphy', nation: 'USA' };
+    const car = { car_id: { a: '3', b: '4' }, model_displayname: 'Car', race_number: 1 };
+    const s = normalize(buildMinimal({
+      drivers: [driver], cars: [car],
+      driver_standings: [{ a: '1', b: '2' }],
+      car_standings: [{ car_id: { a: '3', b: '4' } }],
+      laps: [
+        { driver_key: { a: '1', b: '2' }, car_key: { a: '3', b: '4' }, time: 416835, flags: 1 },
+        { driver_key: { a: '1', b: '2' }, car_key: { a: '3', b: '4' }, time: 409500, flags: 2 },
+      ],
+    }));
+    assert.equal(s.entries[0].laps.length, 2);
+    // Lap 1 is the first completed lap (416835), Lap 2 is the second (409500)
+    assert.equal(s.entries[0].laps[0].number, 1);
+    assert.equal(s.entries[0].laps[0].timeMs, 416835);
+    assert.equal(s.entries[0].laps[1].number, 2);
+    assert.equal(s.entries[0].laps[1].timeMs, 409500);
+    // bestLapMs is still the fastest regardless of order
+    assert.equal(s.entries[0].bestLapMs, 409500);
+  });
+
   it('handles unknown lap flags gracefully', () => {
     const driver = { guid: { a: '1', b: '2' }, nickname: 'test', nation: 'USA' };
     const car = { car_id: { a: '3', b: '4' }, model_displayname: 'Car', race_number: 1 };
@@ -224,10 +246,14 @@ describe('normalize - edge cases', () => {
       ],
     }));
     assert.equal(s.entries[0].laps.length, 3);
-    // sorted by time: 385000(flag=99), 390000(flag=2), 400000(flag=1)
-    assert.equal(s.entries[0].laps[0].flags, 99);
+    // Laps are in original chronological order: 400000(flag=1), 390000(flag=2), 385000(flag=99)
+    assert.equal(s.entries[0].laps[0].flags, 1);
     assert.equal(s.entries[0].laps[1].flags, 2);
-    assert.equal(s.entries[0].laps[2].flags, 1);
+    assert.equal(s.entries[0].laps[2].flags, 99);
+    // Lap numbers reflect chronological order
+    assert.equal(s.entries[0].laps[0].number, 1);
+    assert.equal(s.entries[0].laps[1].number, 2);
+    assert.equal(s.entries[0].laps[2].number, 3);
   });
 
   it('handles driver driving multiple cars', () => {

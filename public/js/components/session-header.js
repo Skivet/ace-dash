@@ -15,19 +15,21 @@ export function createSessionHeader(session, sessions, onSelect) {
   header.className = 'session-header';
 
   const topBar = document.createElement('div');
-  topBar.className = 'session-header__top';
+  topBar.className = 'app-bar';
 
   const logo = document.createElement('h1');
-  logo.className = 'session-header__logo';
-  logo.textContent = 'ACE Session Analytics';
+  logo.className = 'app-bar__brand';
+  logo.textContent = 'ACE SESSION ANALYTICS';
 
   const status = document.createElement('span');
-  status.className = 'session-header__status';
+  status.className = 'app-bar__status';
   status.setAttribute('aria-live', 'polite');
-  status.textContent = '● Ready';
+  status.textContent = 'RESULTS READY';
 
   topBar.appendChild(logo);
   topBar.appendChild(status);
+
+  header.appendChild(topBar);
 
   const contextBar = document.createElement('div');
   contextBar.className = 'session-header__context';
@@ -86,7 +88,6 @@ export function createSessionHeader(session, sessions, onSelect) {
   contextBar.appendChild(trackInfo);
   contextBar.appendChild(rightSide);
 
-  header.appendChild(topBar);
   header.appendChild(contextBar);
 
   return header;
