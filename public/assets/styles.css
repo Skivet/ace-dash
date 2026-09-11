@@ -97,6 +97,12 @@ body {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+a.app-bar__brand:hover {
+  color: var(--accent-cyan);
 }
 
 .app-bar__status {

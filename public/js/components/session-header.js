@@ -17,9 +17,12 @@ export function createSessionHeader(session, sessions, onSelect) {
   const topBar = document.createElement('div');
   topBar.className = 'app-bar';
 
-  const logo = document.createElement('h1');
+  const logo = document.createElement('a');
   logo.className = 'app-bar__brand';
-  logo.textContent = 'ACE SESSION ANALYTICS';
+  logo.href = '#/';
+  logo.setAttribute('aria-label', 'Back to overall dashboard');
+  logo.title = 'Back to overall dashboard';
+  logo.textContent = 'BENTOCLUB / ACE SESSION ANALYTICS';
 
   const status = document.createElement('span');
   status.className = 'app-bar__status';

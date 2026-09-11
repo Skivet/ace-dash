@@ -326,6 +326,17 @@ test.describe('club overview - track selector and records', () => {
     await expect(page.locator('.lap-chart__bar--invalid').first()).toHaveAttribute('style', /width: 18%/);
   });
 
+  test('session header links back to the overall dashboard', async ({ page }) => {
+    await page.goto(`http://localhost:${PORT}/#/session/canonical-fixture`);
+    const backLink = page.getByRole('link', { name: 'Back to overall dashboard' });
+    await expect(backLink).toBeVisible();
+    await expect(backLink).toHaveAttribute('href', '#/');
+    await backLink.click();
+    await expect(page.locator('.club-overview-content')).toBeVisible();
+    await expect(page.locator('.records-panel')).toBeVisible();
+    await expect(page).toHaveURL(/#\/Nurburgring\|Touristenfahrten$/);
+  });
+
   test('session history never promotes an invalid lap to official best', async ({ page }) => {
     await page.goto(`http://localhost:${PORT}/#/session/canonical-fixture`);
     const invalidHistory = page.locator('.session-history__btn').filter({ hasText: 'NO VALID LAP' }).first();
