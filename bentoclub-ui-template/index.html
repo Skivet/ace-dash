@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BentoClub — Session Analytics</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="dashboard" data-view="session">
+    <header class="session-header">
+      <div class="header-status-row">
+        <span class="eyebrow">BentoClub / ACE Session Analytics</span>
+        <span class="system-status"><span class="status-dot"></span>Results ready</span>
+      </div>
+
+      <h1 class="track-title" data-field="track-name">NURBURGRING</h1>
+
+      <div class="session-context">
+        <p class="track-context">
+          <span data-field="track-layout">Touristenfahrten</span> /
+          <span data-field="session-type">Practice</span>
+        </p>
+
+        <div class="session-picker-group">
+          <time data-field="session-date" datetime="2026-09-10">Sep 10, 2026</time>
+          <label class="sr-only" for="session-picker">Session</label>
+          <select id="session-picker" class="session-picker">
+            <option>07:44 PM Practice · Nurburgring · 4 drivers</option>
+            <option>01:07 PM Practice · Nurburgring · 2 drivers</option>
+          </select>
+        </div>
+      </div>
+    </header>
+
+    <section class="kpi-grid" aria-label="Session statistics">
+      <article class="surface kpi kpi--primary">
+        <span class="eyebrow">Best lap</span>
+        <strong class="kpi-value" data-field="best-lap">6:49.500</strong>
+        <span class="accent-text" data-field="best-lap-driver">morphy</span>
+      </article>
+      <article class="surface kpi">
+        <span class="eyebrow">Valid laps</span>
+        <strong class="kpi-value" data-field="valid-laps">3</strong>
+        <span class="accent-text" data-field="invalid-lap-note">2 invalid excluded</span>
+      </article>
+      <article class="surface kpi">
+        <span class="eyebrow">Best improvement</span>
+        <strong class="kpi-value" data-field="best-improvement">2.400 s</strong>
+        <span class="secondary-accent" data-field="improvement-driver">skivet</span>
+      </article>
+      <article class="surface kpi">
+        <span class="eyebrow">Leader gap</span>
+        <strong class="kpi-value" data-field="leader-gap">4.710 s</strong>
+        <span class="accent-text">P1 to P2</span>
+      </article>
+    </section>
+
+    <div class="analysis-grid">
+      <section class="surface leaderboard-panel">
+        <h2>Leaderboard</h2>
+        <ol class="leaderboard" data-component="leaderboard">
+          <li class="leaderboard-row leaderboard-row--leader">
+            <span class="position">1</span>
+            <div><strong>morphy</strong><span class="metadata">Porsche 911 GT3 RS (992)</span></div>
+            <time class="timing-value">6:49.500</time>
+          </li>
+          <li class="leaderboard-row">
+            <span class="position">2</span>
+            <div><strong>skivet</strong><span class="metadata">Porsche 911 GT3 RS (992)</span></div>
+            <time class="timing-value">6:54.210</time>
+          </li>
+          <li class="leaderboard-row leaderboard-row--unclassified">
+            <span class="position">—</span>
+            <div><strong>lukeyeldukey</strong><span class="metadata">Porsche 911 GT3 R Rennsport (992)</span></div>
+            <span class="lap-state">No valid laps</span>
+          </li>
+        </ol>
+      </section>
+
+      <div class="analysis-column">
+        <section class="surface lap-panel">
+          <h2>Lap history</h2>
+          <div class="lap-list" data-component="lap-chart">
+            <div class="lap-row lap-row--invalid">
+              <span>morphy L1</span><div class="lap-track"><span class="lap-bar" style="--bar-width:18.3%"></span></div>
+              <time class="timing-value">6:56.835<small class="invalid-label">Invalid</small></time>
+            </div>
+            <div class="lap-row lap-row--valid">
+              <span>morphy L2</span><div class="lap-track"><span class="lap-bar" style="--bar-width:6.6%"></span></div>
+              <time class="timing-value">6:49.500</time>
+            </div>
+            <div class="lap-row lap-row--valid">
+              <span>skivet L1</span><div class="lap-track"><span class="lap-bar" style="--bar-width:18%"></span></div>
+              <time class="timing-value">6:56.610</time>
+            </div>
+            <div class="lap-row lap-row--valid">
+              <span>skivet L2</span><div class="lap-track"><span class="lap-bar" style="--bar-width:14.2%"></span></div>
+              <time class="timing-value">6:54.210</time>
+            </div>
+          </div>
+          <p class="chart-note">Invalid laps are shown but excluded from pace statistics.</p>
+        </section>
+
+        <section class="surface pace-panel">
+          <h2>Pace summary</h2>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Driver / car</th><th>Valid</th><th>Best</th><th>Gap</th><th>Avg</th></tr></thead>
+              <tbody data-component="pace-summary">
+                <tr class="table-leader"><td><strong>morphy</strong><span class="metadata">911 GT3 RS</span></td><td>1</td><td>6:49.500</td><td class="accent-text">Leader</td><td>6:49.500</td></tr>
+                <tr><td><strong>skivet</strong><span class="metadata">911 GT3 RS</span></td><td>2</td><td>6:54.210</td><td>+4.710</td><td>6:55.410</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <section class="surface history-panel">
+      <h2>Session history</h2>
+      <a class="history-row history-row--selected" href="#/sessions/example-session">
+        <time datetime="2026-09-10">Sep 10, 2026</time>
+        <strong>Nurburgring · Touristenfahrten</strong>
+        <span class="history-result"><span>Practice · 3 drivers · 3 valid laps</span><b>morphy 6:49.500</b></span>
+      </a>
+    </section>
+
+    <details class="surface incidents-panel">
+      <summary>Incidents &amp; penalties · Contact data available</summary>
+      <p>Contact records are sampled data points, not necessarily unique incidents.</p>
+    </details>
+  </main>
+</body>
+</html>

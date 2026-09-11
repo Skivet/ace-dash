@@ -1,32 +1,37 @@
-import { formatTime, formatTimeDelta, formatGap } from '../formatters.js';
+import { formatTime, formatTimeDelta } from '../formatters.js';
 
 export function createKpiCards(session) {
   const container = document.createElement('section');
   container.className = 'kpi-strip';
   container.setAttribute('aria-label', 'Key performance indicators');
 
-  const classifiedCount = (session.entries || []).filter(e => e.bestLapMs !== null).length;
+  const classifiedCount = session.rankedDriverCount || 0;
+
+  const invalidCount = session.invalidLapCount || 0;
+  const validCount = session.validLapCount || 0;
 
   const cards = [
     {
       label: 'BEST LAP',
-      value: session.bestLapMs !== null ? formatTime(session.bestLapMs) : '—',
-      detail: session.bestLapMs !== null ? getBestLapDriver(session) : '',
+      value: session.bestValidLapMs !== null ? formatTime(session.bestValidLapMs) : 'NO VALID LAP',
+      detail: session.bestValidLapMs !== null ? getBestLapDriver(session) : '',
     },
     {
-      label: 'COMPLETED LAPS',
-      value: String(session.completedLapCount),
-      detail: classifiedCount > 0 ? `${classifiedCount} driver${classifiedCount > 1 ? 's' : ''} with laps` : '',
+      label: 'VALID LAPS',
+      value: String(validCount),
+      detail: invalidCount > 0
+        ? `${invalidCount} invalid lap${invalidCount > 1 ? 's' : ''} excluded`
+        : classifiedCount > 0 ? `${classifiedCount} driver${classifiedCount > 1 ? 's' : ''} with laps` : '',
     },
     {
       label: 'BEST IMPROVEMENT',
-      value: session.largestImprovementMs !== null ? formatTimeDelta(session.largestImprovementMs) : '—',
-      detail: session.largestImprovementMs !== null ? getImprovementDriver(session) : '',
+      value: session.largestValidImprovementMs !== null ? formatTimeDelta(session.largestValidImprovementMs) : '—',
+      detail: session.largestValidImprovementMs !== null ? getImprovementDriver(session) : '',
     },
     {
       label: 'LEADER GAP',
-      value: session.leaderGapMs !== null ? formatTimeDelta(session.leaderGapMs) : '—',
-      detail: session.leaderGapMs !== null ? getLeaderGapDetail(session) : 'Need two classified entries',
+      value: getLeaderGapValue(session),
+      detail: getLeaderGapDetail(session),
     },
   ];
 
@@ -56,32 +61,23 @@ export function createKpiCards(session) {
 }
 
 function getBestLapDriver(session) {
-  if (!session.entries || session.bestLapMs === null) return '';
-  const entry = session.entries.find(e => e.bestLapMs === session.bestLapMs);
-  return entry ? entry.driver.nickname : '';
+  if (!session.driverSummaries || session.bestValidLapMs === null) return '';
+  return session.driverSummaries.find(driver => driver.bestValidLapMs === session.bestValidLapMs)?.driverName || '';
 }
 
 function getImprovementDriver(session) {
-  if (!session.entries || session.largestImprovementMs === null) return '';
-  let bestDriver = '';
-  for (const entry of session.entries) {
-    if (entry.laps.length >= 2) {
-      const sorted = [...entry.laps].sort((a, b) => a.timeMs - b.timeMs);
-      const improvement = sorted[sorted.length - 1].timeMs - sorted[0].timeMs;
-      if (improvement === session.largestImprovementMs) {
-        bestDriver = entry.driver.nickname;
-        break;
-      }
-    }
-  }
-  return bestDriver;
+  if (!session.driverSummaries || session.largestValidImprovementMs === null) return '';
+  return session.driverSummaries.find(driver => driver.driverId === session.largestValidImprovementDriverId)?.driverName || '';
+}
+
+function getLeaderGapValue(session) {
+  if ((session.rankedDriverCount || 0) < 2 || session.leaderGapMs === null) return '—';
+  if (session.leaderGapMs === 0) return 'TIE';
+  return formatTimeDelta(session.leaderGapMs);
 }
 
 function getLeaderGapDetail(session) {
-  if (!session.entries || session.leaderGapMs === null) return '';
-  const classified = session.entries.filter(e => e.bestLapMs !== null);
-  if (classified.length < 2) return '';
-  const p1 = classified[0];
-  const p2 = classified[1];
-  return `P1 to P2`;
+  if ((session.rankedDriverCount || 0) < 2 || session.leaderGapMs === null) return '';
+  if (session.leaderGapMs === 0) return 'TIED LEADER';
+  return 'P1 to P2';
 }

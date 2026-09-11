@@ -6,6 +6,7 @@
   "main": "server/server.js",
   "scripts": {
     "test": "node --test test/**/*.test.js",
+    "test:playwright": "npx playwright test",
     "start": "node server/server.js",
     "dev": "node server/server.js"
   },

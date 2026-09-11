@@ -2,6 +2,12 @@
  * Normalizes raw ACE results JSON into the dashboard session model.
  */
 
+const VALID_LAP_FLAG = 2;
+
+function isValidLap(lap) {
+  return lap?.flags === VALID_LAP_FLAG && Number.isFinite(lap.timeMs) && lap.timeMs > 0;
+}
+
 /**
  * Parses a session timestamp from a filename containing the pattern
  * results_YYYYMMDD_HHMMSS_<session-type>.json.
@@ -48,7 +54,7 @@ function normalizeFloat(value) {
   return parsed;
 }
 
-function normalizeLap(lap) {
+function normalizeLap(lap, sequence) {
   const driverKey = compositeId(lap.driver_key);
   const carKey = compositeId(lap.car_key);
   const timeMs = normalizeTime(lap.time);
@@ -57,7 +63,183 @@ function normalizeLap(lap) {
     driverKey,
     timeMs,
     flags: lap.flags,
+    isValid: isValidLap({ flags: lap.flags, timeMs }),
+    sequence,
   };
+}
+
+function getLargestConsecutiveValidImprovement(laps) {
+  let largestImprovementMs = null;
+  for (let i = 1; i < laps.length; i++) {
+    const previous = laps[i - 1];
+    const current = laps[i];
+    if (!isValidLap(previous) || !isValidLap(current)) continue;
+    const improvementMs = previous.timeMs - current.timeMs;
+    if (improvementMs > 0 && (largestImprovementMs === null || improvementMs > largestImprovementMs)) {
+      largestImprovementMs = improvementMs;
+    }
+  }
+  return largestImprovementMs;
+}
+
+function deriveSessionMetrics(session) {
+  const seenEntryIds = new Set();
+  const entries = (session.entries || []).filter(entry => {
+    if (seenEntryIds.has(entry.id)) return false;
+    seenEntryIds.add(entry.id);
+    return true;
+  });
+  session.entries = entries;
+
+  for (const entry of entries) {
+    entry.laps = (entry.laps || []).map((lap, index) => ({
+      ...lap,
+      number: lap.number ?? index + 1,
+      sequence: lap.sequence ?? index,
+      isValid: isValidLap(lap),
+    }));
+    entry.validLaps = entry.laps.filter(isValidLap);
+    entry.invalidLaps = entry.laps.filter(lap => !isValidLap(lap));
+    entry.validLapCount = entry.validLaps.length;
+    entry.invalidLapCount = entry.invalidLaps.length;
+    entry.hasValidLap = entry.validLapCount > 0;
+    entry.bestValidLapMs = entry.hasValidLap ? Math.min(...entry.validLaps.map(lap => lap.timeMs)) : null;
+    entry.fastestInvalidLapMs = entry.invalidLaps.length > 0
+      ? Math.min(...entry.invalidLaps.map(lap => lap.timeMs))
+      : null;
+    entry.validAverageLapMs = entry.hasValidLap
+      ? Math.round(entry.validLaps.reduce((sum, lap) => sum + lap.timeMs, 0) / entry.validLapCount)
+      : null;
+    entry.validLapRangeMs = entry.validLapCount >= 2
+      ? Math.max(...entry.validLaps.map(lap => lap.timeMs)) - Math.min(...entry.validLaps.map(lap => lap.timeMs))
+      : null;
+    entry.largestValidImprovementMs = getLargestConsecutiveValidImprovement(
+      [...entry.laps].sort((a, b) => a.sequence - b.sequence),
+    );
+  }
+
+  const driverMap = new Map();
+  for (const entry of entries) {
+    const key = entry.driver.id;
+    if (!driverMap.has(key)) {
+      driverMap.set(key, {
+        driverId: key,
+        driverName: entry.driver.nickname,
+        entries: [],
+        laps: [],
+      });
+    }
+    const driver = driverMap.get(key);
+    driver.entries.push(entry);
+    driver.laps.push(...entry.laps.map(lap => ({ ...lap, entryId: entry.id, car: entry.car })));
+  }
+
+  const driverSummaries = [...driverMap.values()].map(driver => {
+    driver.laps.sort((a, b) => a.sequence - b.sequence);
+    const validLaps = driver.laps.filter(isValidLap);
+    const invalidLaps = driver.laps.filter(lap => !isValidLap(lap));
+    const bestValidLapMs = validLaps.length > 0 ? Math.min(...validLaps.map(lap => lap.timeMs)) : null;
+    const bestLap = validLaps.find(lap => lap.timeMs === bestValidLapMs);
+    return {
+      driverId: driver.driverId,
+      driverName: driver.driverName,
+      entryId: bestLap?.entryId ?? driver.entries[0]?.id ?? '',
+      carId: bestLap?.car.id ?? driver.entries[0]?.car.id ?? '',
+      carName: bestLap?.car.model ?? driver.entries[0]?.car.model ?? '',
+      validLaps,
+      invalidLaps,
+      validLapCount: validLaps.length,
+      invalidLapCount: invalidLaps.length,
+      hasValidLap: validLaps.length > 0,
+      bestValidLapMs,
+      fastestInvalidLapMs: invalidLaps.length > 0 ? Math.min(...invalidLaps.map(lap => lap.timeMs)) : null,
+      validAverageLapMs: validLaps.length > 0
+        ? Math.round(validLaps.reduce((sum, lap) => sum + lap.timeMs, 0) / validLaps.length)
+        : null,
+      validLapRangeMs: validLaps.length >= 2
+        ? Math.max(...validLaps.map(lap => lap.timeMs)) - Math.min(...validLaps.map(lap => lap.timeMs))
+        : null,
+      largestValidImprovementMs: getLargestConsecutiveValidImprovement(driver.laps),
+    };
+  });
+
+  driverSummaries.sort((a, b) => {
+    if (a.bestValidLapMs !== null && b.bestValidLapMs !== null) return a.bestValidLapMs - b.bestValidLapMs;
+    if (a.bestValidLapMs !== null) return -1;
+    if (b.bestValidLapMs !== null) return 1;
+    return a.driverName.localeCompare(b.driverName);
+  });
+
+  const rankedDrivers = driverSummaries.filter(driver => driver.hasValidLap);
+  const leaderBestLapMs = rankedDrivers[0]?.bestValidLapMs ?? null;
+  for (let i = 0; i < rankedDrivers.length; i++) {
+    const driver = rankedDrivers[i];
+    driver.rank = i === 0 || driver.bestValidLapMs !== rankedDrivers[i - 1].bestValidLapMs
+      ? i + 1
+      : rankedDrivers[i - 1].rank;
+    driver.isTied = rankedDrivers.some((other, otherIndex) =>
+      otherIndex !== i && other.bestValidLapMs === driver.bestValidLapMs
+    );
+    driver.gapToLeaderMs = driver.bestValidLapMs - leaderBestLapMs;
+    driver.isLeader = driver.bestValidLapMs === leaderBestLapMs;
+  }
+  for (const driver of driverSummaries.filter(driver => !driver.hasValidLap)) {
+    driver.rank = null;
+    driver.isTied = false;
+    driver.gapToLeaderMs = null;
+    driver.isLeader = false;
+  }
+  for (const entry of entries) {
+    entry.gapToLeaderMs = entry.bestValidLapMs !== null && leaderBestLapMs !== null
+      ? entry.bestValidLapMs - leaderBestLapMs
+      : null;
+    entry.isLeader = entry.bestValidLapMs !== null && entry.bestValidLapMs === leaderBestLapMs;
+  }
+
+  const allLaps = entries.flatMap(entry => entry.laps);
+  const validLaps = allLaps.filter(isValidLap);
+  const invalidLaps = allLaps.filter(lap => !isValidLap(lap));
+  session.validLaps = validLaps;
+  session.invalidLaps = invalidLaps;
+  session.validLapCount = validLaps.length;
+  session.invalidLapCount = invalidLaps.length;
+  session.hasValidLap = validLaps.length > 0;
+  session.bestValidLapMs = session.hasValidLap ? Math.min(...validLaps.map(lap => lap.timeMs)) : null;
+  session.fastestInvalidLapMs = invalidLaps.length > 0 ? Math.min(...invalidLaps.map(lap => lap.timeMs)) : null;
+  session.validAverageLapMs = session.hasValidLap
+    ? Math.round(validLaps.reduce((sum, lap) => sum + lap.timeMs, 0) / validLaps.length)
+    : null;
+  session.validLapRangeMs = validLaps.length >= 2
+    ? Math.max(...validLaps.map(lap => lap.timeMs)) - Math.min(...validLaps.map(lap => lap.timeMs))
+    : null;
+  session.driverSummaries = driverSummaries;
+  session.rankedDriverCount = rankedDrivers.length;
+  session.leaderGapMs = rankedDrivers.length >= 2
+    ? rankedDrivers[1].bestValidLapMs - rankedDrivers[0].bestValidLapMs
+    : null;
+
+  const improvingDrivers = driverSummaries.filter(driver => driver.largestValidImprovementMs !== null);
+  improvingDrivers.sort((a, b) => b.largestValidImprovementMs - a.largestValidImprovementMs);
+  session.largestValidImprovementMs = improvingDrivers[0]?.largestValidImprovementMs ?? null;
+  session.largestValidImprovementDriverId = improvingDrivers[0]?.driverId ?? null;
+  session.largestImprovementMs = session.largestValidImprovementMs;
+  session.paceSummary = driverSummaries.map(driver => ({
+    entryId: driver.entryId,
+    driverId: driver.driverId,
+    driverName: driver.driverName,
+    carName: driver.carName,
+    validLapCount: driver.validLapCount,
+    invalidLapCount: driver.invalidLapCount,
+    hasValidLap: driver.hasValidLap,
+    bestValidLapMs: driver.bestValidLapMs,
+    fastestInvalidLapMs: driver.fastestInvalidLapMs,
+    validAverageLapMs: driver.validAverageLapMs,
+    validLapRangeMs: driver.validLapRangeMs,
+    gapToLeaderMs: driver.gapToLeaderMs,
+    isLeader: driver.isLeader,
+  }));
+
+  return session;
 }
 
 function aggregateContacts(collisions, carId) {
@@ -127,6 +309,7 @@ function normalize(raw) {
   }
 
   const entries = [];
+  const entryIds = new Set();
   const len = Math.max(driverStandings.length, carStandings.length);
   for (let i = 0; i < len; i++) {
     const driverKey = compositeId(driverStandings[i]);
@@ -138,11 +321,17 @@ function normalize(raw) {
     if (!driver || !car) continue;
 
     const entryId = `${driverKey}:${carKey}`;
+    if (entryIds.has(entryId)) continue;
+    entryIds.add(entryId);
     const entryLaps = lapsRaw
       .map(normalizeLap)
       .filter(l => l.driverKey === driverKey && l.carKey === carKey && l.timeMs > 0);
 
     const bestLapMs = entryLaps.length > 0 ? Math.min(...entryLaps.map(l => l.timeMs)) : null;
+    const validLaps = entryLaps.filter(l => l.isValid);
+    const validLapCount = validLaps.length;
+    const invalidLapCount = entryLaps.length - validLapCount;
+    const bestValidLapMs = validLaps.length > 0 ? Math.min(...validLaps.map(l => l.timeMs)) : null;
     const completedLapCount = entryLaps.length;
     const averageLapMs = completedLapCount > 0 ? Math.round(entryLaps.reduce((sum, l) => sum + l.timeMs, 0) / completedLapCount) : null;
     const lapRangeMs = completedLapCount >= 2 ? Math.max(...entryLaps.map(l => l.timeMs)) - Math.min(...entryLaps.map(l => l.timeMs)) : null;
@@ -163,8 +352,12 @@ function normalize(raw) {
         number: idx + 1,
         timeMs: l.timeMs,
         flags: l.flags,
+        isValid: l.isValid,
       })),
       bestLapMs,
+      bestValidLapMs,
+      validLapCount,
+      invalidLapCount,
       completedLapCount,
       averageLapMs,
       lapRangeMs,
@@ -180,6 +373,8 @@ function normalize(raw) {
   const allLaps = entries.flatMap(e => e.laps);
   const completedLapCount = allLaps.length;
   const bestLapMs = allLaps.length > 0 ? Math.min(...allLaps.map(l => l.timeMs)) : null;
+  const validLapCount = allLaps.filter(l => l.isValid).length;
+  const invalidLapCount = completedLapCount - validLapCount;
 
   entries.sort((a, b) => {
     if (a.bestLapMs !== null && b.bestLapMs !== null) return a.bestLapMs - b.bestLapMs;
@@ -250,12 +445,14 @@ function normalize(raw) {
     paceSummary,
     bestLapMs,
     completedLapCount,
+    validLapCount,
+    invalidLapCount,
     largestImprovementMs,
     maxImpactKmh,
     leaderGapMs,
   };
 
-  return normalized;
+  return deriveSessionMetrics(normalized);
 }
 
-export { normalize, compositeId, parseTimestampFromFilename };
+export { normalize, deriveSessionMetrics, compositeId, parseTimestampFromFilename, isValidLap, VALID_LAP_FLAG };

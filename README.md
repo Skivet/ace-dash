@@ -2,6 +2,8 @@
 
 A responsive dashboard for completed Assetto Corsa EVO dedicated-server session results.
 
+Detailed setup, architecture, API, operations, and contributor documentation is available in the [project wiki](wiki/Home.md).
+
 ## What this does
 
 ACE produces a JSON results file when each session ends. This dashboard:

@@ -4,6 +4,7 @@ import { join, extname, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Importer } from './importer.js';
 import { SessionStore } from './session-store.js';
+import { computeOverallRecords, computeCarRecords } from './club-records.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = join(__dirname, '..', 'public');
@@ -15,6 +16,7 @@ const SCAN_INTERVAL = parseInt(process.env.ACE_SCAN_INTERVAL_MS || '10000', 10);
 
 const store = new SessionStore(NORMALIZED_DIR);
 const importer = new Importer(store, RESULTS_DIR, NORMALIZED_DIR, SCAN_INTERVAL);
+let server;
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -74,6 +76,59 @@ function parseUrl(url) {
   };
 }
 
+function trackId(name, layout) {
+  return `${encodeURIComponent(name)}|${encodeURIComponent(layout)}`;
+}
+
+function parseTrackId(id) {
+  const decoded = decodeURIComponent(id);
+  const sep = decoded.indexOf('|');
+  if (sep === -1) return null;
+  return {
+    name: decoded.slice(0, sep),
+    layout: decoded.slice(sep + 1),
+  };
+}
+
+function computeClubStats(sessions) {
+  const driverSet = new Set();
+  const carSet = new Set();
+  const trackSet = new Set();
+  let totalValidLaps = 0;
+  let totalInvalidLaps = 0;
+  let totalSessions = sessions.length;
+  let mostRecentSession = null;
+
+  for (const s of sessions) {
+    for (const e of s.entries || []) {
+      driverSet.add(e.driver.id);
+      carSet.add(e.car.model);
+    }
+    const tid = trackId(s.track.name, s.track.layout);
+    trackSet.add(tid);
+    totalValidLaps += s.validLapCount || 0;
+    totalInvalidLaps += s.invalidLapCount || 0;
+    if (!mostRecentSession || (s.source?.importedAt || '') > (mostRecentSession?.source?.importedAt || '')) {
+      mostRecentSession = s;
+    }
+  }
+
+  return {
+    totalValidLaps,
+    totalInvalidLaps,
+    activeDrivers: driverSet.size,
+    carsDriven: carSet.size,
+    tracksRepresented: trackSet.size,
+    totalSessions,
+    mostRecentSession: mostRecentSession ? {
+      id: mostRecentSession.id,
+      track: mostRecentSession.track,
+      session: mostRecentSession.session,
+      importedAt: mostRecentSession.source?.importedAt,
+    } : null,
+  };
+}
+
 async function handleApi(req, res, { path, query }) {
   if (path === '/api/health') {
     return sendJson(res, 200, { status: 'ok', imported: store.list().length });
@@ -82,15 +137,20 @@ async function handleApi(req, res, { path, query }) {
   if (path === '/api/sessions') {
     const sessions = store.list();
     return sendJson(res, 200, sessions.map(s => {
-      const bestEntry = s.entries?.find(e => e.bestLapMs === s.bestLapMs);
+      const bestDriver = s.driverSummaries?.find(driver => driver.bestValidLapMs === s.bestValidLapMs);
       return {
         id: s.id,
         track: s.track,
         session: s.session,
         completedLapCount: s.completedLapCount,
-        bestLapMs: s.bestLapMs,
+        validLapCount: s.validLapCount ?? 0,
+        invalidLapCount: s.invalidLapCount ?? 0,
+        bestValidLapMs: s.bestValidLapMs,
+        fastestInvalidLapMs: s.fastestInvalidLapMs,
+        hasValidLap: s.hasValidLap,
         entriesCount: s.entries?.length ?? 0,
-        bestDriverNickname: bestEntry?.driver?.nickname ?? '',
+        rankedDriverCount: s.rankedDriverCount ?? 0,
+        bestValidDriverNickname: bestDriver?.driverName ?? '',
         source: s.source,
       };
     }));
@@ -130,41 +190,161 @@ async function handleApi(req, res, { path, query }) {
     return sendJson(res, 200, { tracks: [...trackMap.values()] });
   }
 
+  if (path === '/api/club/stats') {
+    const sessions = store.list();
+    return sendJson(res, 200, computeClubStats(sessions));
+  }
+
+  if (path === '/api/club/records') {
+    const trackName = query.track || '';
+    const layout = query.layout || '';
+    if (!trackName || !layout) {
+      return sendJson(res, 400, { error: 'track and layout query params required' });
+    }
+    const sessions = store.list();
+    const records = computeOverallRecords(sessions, trackName, layout);
+    return sendJson(res, 200, { track: trackName, layout, records });
+  }
+
+  if (path === '/api/club/car-records') {
+    const trackName = query.track || '';
+    const layout = query.layout || '';
+    if (!trackName || !layout) {
+      return sendJson(res, 400, { error: 'track and layout query params required' });
+    }
+    const sessions = store.list();
+    const records = computeCarRecords(sessions, trackName, layout);
+    return sendJson(res, 200, { track: trackName, layout, records });
+  }
+
+  if (path === '/api/club/recent-sessions') {
+    const sessions = store.list();
+    const recent = sessions.slice(0, 10).map(s => ({
+      id: s.id,
+      track: s.track,
+      session: s.session,
+      validLapCount: s.validLapCount ?? 0,
+      invalidLapCount: s.invalidLapCount ?? 0,
+      bestValidLapMs: s.bestValidLapMs,
+      fastestInvalidLapMs: s.fastestInvalidLapMs,
+      hasValidLap: s.hasValidLap,
+      entriesCount: s.entries?.length ?? 0,
+      rankedDriverCount: s.rankedDriverCount ?? 0,
+      bestValidDriverNickname: (s.driverSummaries?.find(driver => driver.bestValidLapMs === s.bestValidLapMs))?.driverName || '',
+      source: s.source,
+    }));
+    return sendJson(res, 200, { sessions: recent });
+  }
+
+  if (path.startsWith('/api/tracks/')) {
+    const trackIdParam = path.slice('/api/tracks/'.length);
+    const sessions = store.list();
+    const decoded = parseTrackId(trackIdParam);
+    if (!decoded) return sendJson(res, 400, { error: 'invalid track id' });
+    const trackSessions = sessions.filter(s =>
+      s.track.name === decoded.name && s.track.layout === decoded.layout
+    );
+    const records = computeOverallRecords(trackSessions, decoded.name, decoded.layout);
+    const carRecords = computeCarRecords(trackSessions, decoded.name, decoded.layout);
+    return sendJson(res, 200, {
+      track: decoded.name,
+      layout: decoded.layout,
+      sessionCount: trackSessions.length,
+      records,
+      carRecords,
+    });
+  }
+
+  if (path.startsWith('/api/cars/')) {
+    const carModel = decodeURIComponent(path.slice('/api/cars/'.length));
+    const sessions = store.list();
+    const carSessions = sessions.filter(s =>
+      (s.entries || []).some(e => e.car.model === carModel)
+    );
+    const entries = carSessions.flatMap(s =>
+      (s.entries || []).filter(e => e.car.model === carModel && e.bestValidLapMs !== null)
+    );
+    entries.sort((a, b) => a.bestValidLapMs - b.bestValidLapMs);
+    const bestLapMs = entries.length > 0 ? entries[0].bestValidLapMs : null;
+    const result = entries.map(e => ({
+      driverId: e.driver.id,
+      driverName: e.driver.nickname,
+      carModel: e.car.model,
+      bestLapMs: e.bestValidLapMs,
+      gapToLeaderMs: e.bestValidLapMs - (bestLapMs || 0),
+      sessionId: e.sessionId,
+      sessionName: e.sessionName,
+      importedAt: e.importedAt,
+    }));
+    return sendJson(res, 200, { carModel, entries: result, sessionCount: carSessions.length });
+  }
+
+  if (path.startsWith('/api/drivers/')) {
+    const driverId = decodeURIComponent(path.slice('/api/drivers/'.length));
+    const sessions = store.list();
+    const driverSessions = sessions.filter(s =>
+      (s.entries || []).some(e => e.driver.id === driverId)
+    );
+    const entries = driverSessions.flatMap(s =>
+      (s.entries || []).filter(e => e.driver.id === driverId && e.bestValidLapMs !== null)
+    );
+    entries.sort((a, b) => a.bestValidLapMs - b.bestValidLapMs);
+    const bestLapMs = entries.length > 0 ? entries[0].bestValidLapMs : null;
+    const result = entries.map(e => ({
+      driverId: e.driver.id,
+      driverName: e.driver.nickname,
+      carModel: e.car.model,
+      bestLapMs: e.bestValidLapMs,
+      gapToLeaderMs: e.bestValidLapMs - (bestLapMs || 0),
+      sessionId: e.sessionId,
+      sessionName: e.sessionName,
+      importedAt: e.importedAt,
+    }));
+    return sendJson(res, 200, { driverId, entries: result, sessionCount: driverSessions.length });
+  }
+
   return null;
 }
 
-const server = createServer(async (req, res) => {
-  const { path } = parseUrl(req.url);
-
-  if (path.startsWith('/api/')) {
-    const result = await handleApi(req, res, parseUrl(req.url));
-    if (result) return;
-  }
-
-  if (path === '/' || path === '/index.html') {
-    return sendStatic(res, join(PUBLIC_DIR, 'index.html'));
-  }
-
-  return sendStatic(res, join(PUBLIC_DIR, path));
-});
-
 async function main() {
+  console.log(`ACE Dashboard starting...`);
+  console.log(`  Results dir:    ${RESULTS_DIR}`);
+  console.log(`  Normalized dir: ${NORMALIZED_DIR}`);
+  console.log(`  Port:           ${PORT}`);
+
   await store.init();
-  await importer.start();
-  console.log(`ACE Dashboard starting on port ${PORT}`);
-  console.log(`Results dir: ${RESULTS_DIR}`);
-  console.log(`Normalized dir: ${NORMALIZED_DIR}`);
-  console.log(`Sessions imported: ${store.list().length}`);
+  console.log(`  Sessions loaded: ${store.list().length}`);
 
   importer.onImport = (id) => {
-    console.log(`New session imported: ${id.slice(0, 8)}…`);
+    console.log(`  [importer] New session: ${id.slice(0, 8)}…`);
   };
   importer.onError = (filename, err) => {
-    console.error(`Import error for ${filename}: ${err.message}`);
+    console.error(`  [importer] Error: ${filename}: ${err.message}`);
   };
 
+  // Start importer in background so the server is usable immediately
+  importer.start().catch(err => {
+    console.error('[importer] Fatal scan error:', err);
+  });
+
+  server = createServer(async (req, res) => {
+    const { path } = parseUrl(req.url);
+
+    if (path.startsWith('/api/')) {
+      const result = await handleApi(req, res, parseUrl(req.url));
+      if (result) return;
+    }
+
+    if (path === '/' || path === '/index.html') {
+      return sendStatic(res, join(PUBLIC_DIR, 'index.html'));
+    }
+
+    return sendStatic(res, join(PUBLIC_DIR, path));
+  });
+
   server.listen(PORT, () => {
-    console.log(`Server listening on http://localhost:${PORT}`);
+    console.log(`  Server listening on http://localhost:${PORT}`);
+    console.log(`  Done.\n`);
   });
 }
 
