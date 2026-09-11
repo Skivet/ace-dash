@@ -6,6 +6,7 @@ import { join, dirname, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { normalize } from '../server/normalizer.js';
+import { computeOverallRecords, computeCarRecords } from '../server/club-records.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const RESULTS_DIR = join(__dirname, '..', 'data', 'results');
@@ -27,81 +28,6 @@ async function importFixture(store, filename) {
     fileModifiedAt: new Date().toISOString(),
   };
   return store.add(normalized, normalized.source);
-}
-
-function computeOverallRecords(sessions, trackName, layoutName) {
-  const records = [];
-  for (const s of sessions) {
-    if (s.track.name !== trackName || s.track.layout !== layoutName) continue;
-    for (const e of s.entries || []) {
-      if (e.bestValidLapMs === null) continue;
-      records.push({
-        driverId: e.driver.id,
-        driverName: e.driver.nickname,
-        carId: e.car.id,
-        carModel: e.car.model,
-        bestLapMs: e.bestValidLapMs,
-        sessionId: s.id,
-        importedAt: s.source?.importedAt || '',
-      });
-    }
-  }
-  records.sort((a, b) => a.bestLapMs - b.bestLapMs);
-
-  const outrightBest = records.length > 0 ? records[0].bestLapMs : null;
-  let tiedCount = 1;
-  for (let i = 1; i <= records.length; i++) {
-    if (i < records.length && records[i].bestLapMs === records[i - 1].bestLapMs) {
-      tiedCount++;
-    } else {
-      for (let j = i - tiedCount; j < i; j++) {
-        records[j].rank = i - tiedCount + 1;
-        records[j].isTied = tiedCount > 1;
-      }
-      tiedCount = 1;
-    }
-  }
-
-  for (const r of records) {
-    r.gapToOutrightMs = outrightBest !== null ? r.bestLapMs - outrightBest : null;
-    r.isOutrightRecord = r.bestLapMs === outrightBest;
-  }
-  return records;
-}
-
-function computeCarRecords(sessions, trackName, layoutName) {
-  const carMap = new Map();
-  for (const s of sessions) {
-    if (s.track.name !== trackName || s.track.layout !== layoutName) continue;
-    for (const e of s.entries || []) {
-      if (e.bestValidLapMs === null) continue;
-      const key = e.car.model;
-      if (!carMap.has(key)) {
-        carMap.set(key, {
-          carId: e.car.id, carModel: e.car.model, bestLapMs: e.bestValidLapMs,
-          driverId: e.driver.id, driverName: e.driver.nickname, sessionId: s.id,
-          importedAt: s.source?.importedAt || '', validLapCount: e.validLapCount || 0, sessionCount: 1,
-        });
-      } else {
-        const existing = carMap.get(key);
-        if (e.bestValidLapMs < existing.bestLapMs) {
-          Object.assign(existing, {
-            bestLapMs: e.bestValidLapMs, driverId: e.driver.id, driverName: e.driver.nickname,
-            sessionId: s.id, importedAt: s.source?.importedAt || '', validLapCount: e.validLapCount || 0,
-          });
-        }
-        existing.sessionCount++;
-      }
-    }
-  }
-  const records = [...carMap.values()];
-  records.sort((a, b) => a.bestLapMs - b.bestLapMs);
-  const outrightBest = records.length > 0 ? records[0].bestLapMs : null;
-  for (const r of records) {
-    r.gapToOutrightMs = outrightBest !== null ? r.bestLapMs - outrightBest : null;
-    r.isOutrightRecord = r.bestLapMs === outrightBest;
-  }
-  return records;
 }
 
 test.describe('club overview - track selector and records', () => {
@@ -136,7 +62,20 @@ test.describe('club overview - track selector and records', () => {
       await importFixture(store, f);
     }
 
-    const sessions = store.list();
+    const canonicalRaw = JSON.parse(await readFile(join(__dirname, 'fixtures', 'session1.json'), 'utf8'));
+    const canonicalSession = normalize(canonicalRaw);
+    canonicalSession.id = 'canonical-fixture';
+    canonicalSession.source = { importedAt: '2026-09-11T12:00:00Z' };
+
+    const invalidSession = normalize({
+      ...structuredClone(canonicalRaw),
+      session_name: 'Invalid only',
+      laps: canonicalRaw.laps.map(lap => ({ ...lap, flags: 1 })),
+    });
+    invalidSession.id = 'invalid-only-fixture';
+    invalidSession.source = { importedAt: '2026-09-11T11:00:00Z' };
+
+    const sessions = [canonicalSession, invalidSession, ...store.list()];
     const trackMap = new Map();
     for (const s of sessions) {
       const key = `${s.track.name}|${s.track.layout}`;
@@ -188,9 +127,20 @@ test.describe('club overview - track selector and records', () => {
         return res.end(JSON.stringify(sessions.map(s => ({
           id: s.id, track: s.track, session: s.session,
           completedLapCount: s.completedLapCount, validLapCount: s.validLapCount ?? 0,
-          invalidLapCount: s.invalidLapCount ?? 0, bestLapMs: s.bestLapMs,
+          invalidLapCount: s.invalidLapCount ?? 0, bestValidLapMs: s.bestValidLapMs,
+          fastestInvalidLapMs: s.fastestInvalidLapMs, hasValidLap: s.hasValidLap,
+          rankedDriverCount: s.rankedDriverCount,
+          bestValidDriverNickname: s.driverSummaries?.find(driver => driver.bestValidLapMs === s.bestValidLapMs)?.driverName || '',
           entriesCount: s.entries?.length ?? 0, source: s.source,
         }))));
+      }
+      if (path.startsWith('/api/sessions/')) {
+        const session = sessions.find(item => item.id === path.slice('/api/sessions/'.length));
+        if (!session) {
+          res.writeHead(404);
+          return res.end(JSON.stringify({ error: 'Session not found' }));
+        }
+        return res.end(JSON.stringify(session));
       }
 
       // Static file serving
@@ -344,5 +294,72 @@ test.describe('club overview - track selector and records', () => {
 
     const carRows = page.locator('.car-records-panel .records-table__row');
     expect(await carRows.count()).toBeGreaterThan(0);
+  });
+
+  test('session UI excludes invalid laps from every competitive metric', async ({ page }) => {
+    await page.goto(`http://localhost:${PORT}/#/session/canonical-fixture`);
+    await page.waitForSelector('.leaderboard');
+
+    const bestLapCard = page.locator('.kpi-card').filter({ hasText: 'BEST LAP' });
+    await expect(bestLapCard.locator('.kpi-card__value')).toHaveText('6:49.500');
+    const improvementCard = page.locator('.kpi-card').filter({ hasText: 'BEST IMPROVEMENT' });
+    await expect(improvementCard.locator('.kpi-card__value')).toHaveText('—');
+    const gapCard = page.locator('.kpi-card').filter({ hasText: 'LEADER GAP' });
+    await expect(gapCard.locator('.kpi-card__value')).toHaveText('—');
+
+    const morphyRow = page.locator('.leaderboard__row').filter({ hasText: 'morphy' });
+    await expect(morphyRow.locator('.leaderboard__pos')).toHaveText('1');
+    await expect(morphyRow.locator('.leaderboard__time')).toHaveText('6:49.500');
+    const lukeRow = page.locator('.leaderboard__row').filter({ hasText: 'lukeyeldukey' });
+    await expect(lukeRow.locator('.leaderboard__pos')).toHaveText('NV');
+    await expect(lukeRow.locator('.leaderboard__time')).toHaveText('NO VALID LAP');
+
+    const morphyPace = page.locator('.pace-summary__row').filter({ hasText: 'morphy' });
+    await expect(morphyPace.locator('.pace-summary__col-laps')).toHaveText('1');
+    await expect(morphyPace.locator('.pace-summary__col-best')).toHaveText('6:49.500');
+    await expect(morphyPace.locator('.pace-summary__col-avg')).toHaveText('6:49.500');
+    await expect(morphyPace.locator('.pace-summary__col-range')).toHaveText('—');
+    await expect(morphyPace.locator('.pace-summary__col-gap')).toHaveText('LEADER');
+
+    await expect(page.locator('.lap-chart__flag').filter({ hasText: /^VALID$/ })).toHaveCount(1);
+    await expect(page.locator('.lap-chart__flag').filter({ hasText: /^INVALID$/ })).toHaveCount(2);
+    await expect(page.locator('.lap-chart__bar--invalid').first()).toHaveAttribute('style', /width: 18%/);
+  });
+
+  test('session history never promotes an invalid lap to official best', async ({ page }) => {
+    await page.goto(`http://localhost:${PORT}/#/session/canonical-fixture`);
+    const invalidHistory = page.locator('.session-history__btn').filter({ hasText: 'NO VALID LAP' }).first();
+    await expect(invalidHistory).toContainText('NO VALID LAP');
+    await expect(invalidHistory.locator('.session-history__best')).toHaveCount(0);
+  });
+
+  test('desktop car records expose full car names and separate record columns', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`http://localhost:${PORT}/`);
+    await page.waitForSelector('.records-table--cars .records-table__row');
+    const firstRow = page.locator('.records-table--cars .records-table__row').first();
+    const car = firstRow.locator('.records-table__col-car');
+    const fullName = await car.getAttribute('title');
+    expect(fullName).toBeTruthy();
+    await expect(car).toHaveText(fullName);
+    await expect(firstRow.locator('.records-table__col-time')).toBeVisible();
+    await expect(firstRow.locator('.records-table__col-driver')).toBeVisible();
+    expect(await firstRow.locator('.records-table__col-time').boundingBox()).not.toEqual(await firstRow.locator('.records-table__col-driver').boundingBox());
+  });
+
+  test('overall records show ten rows initially and expand without refetching', async ({ page }) => {
+    let recordRequests = 0;
+    page.on('request', request => {
+      if (request.url().includes('/api/club/records')) recordRequests++;
+    });
+    await page.goto(`http://localhost:${PORT}/`);
+    const toggle = page.locator('.records-panel .records-table__more');
+    await expect(toggle).toBeVisible();
+    await expect(page.locator('.records-panel .records-table__row')).toHaveCount(10);
+    const total = Number((await toggle.textContent()).match(/\d+/)?.[0]);
+    const requestsBeforeExpand = recordRequests;
+    await toggle.click();
+    await expect(page.locator('.records-panel .records-table__row')).toHaveCount(total);
+    expect(recordRequests).toBe(requestsBeforeExpand);
   });
 });

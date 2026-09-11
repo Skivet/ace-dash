@@ -51,15 +51,15 @@ export function createSessionHistory(sessions, onSelect, selectedId) {
       meta.appendChild(invalidSpan);
     }
 
-    if (s.bestLapMs !== null) {
+    if (s.bestValidLapMs !== null) {
       const best = document.createElement('span');
       best.className = 'session-history__best';
-      best.textContent = `${s.bestDriverNickname || '—'}  ${formatBestLap(s.bestLapMs)}`;
+      best.textContent = `${s.bestValidDriverNickname || '—'}  ${formatBestLap(s.bestValidLapMs)}`;
       meta.appendChild(best);
     } else if (validLapCount === 0 && (s.completedLapCount || 0) > 0) {
       const noValid = document.createElement('span');
       noValid.className = 'session-history__no-valid';
-      noValid.textContent = 'NO VALID LAPS';
+      noValid.textContent = 'NO VALID LAP';
       meta.appendChild(noValid);
     }
 

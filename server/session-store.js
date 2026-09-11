@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { mkdir, readFile, writeFile, access, constants } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
+import { deriveSessionMetrics } from './normalizer.js';
 
 const INDEX_FILE = 'sessions.json';
 
@@ -22,6 +23,7 @@ class SessionStore {
       const data = JSON.parse(raw);
       this.index = Array.isArray(data) ? data : [];
       for (const entry of this.index) {
+        deriveSessionMetrics(entry);
         this.sessions.set(entry.id, entry);
       }
     } catch {
@@ -62,12 +64,23 @@ class SessionStore {
       session: normalized.session,
       completedLapCount: normalized.completedLapCount,
       bestLapMs: normalized.bestLapMs,
+      bestValidLapMs: normalized.bestValidLapMs,
+      fastestInvalidLapMs: normalized.fastestInvalidLapMs,
+      hasValidLap: normalized.hasValidLap,
+      validAverageLapMs: normalized.validAverageLapMs,
+      validLapRangeMs: normalized.validLapRangeMs,
+      validLaps: normalized.validLaps,
+      invalidLaps: normalized.invalidLaps,
       validLapCount: normalized.validLapCount,
       invalidLapCount: normalized.invalidLapCount,
       largestImprovementMs: normalized.largestImprovementMs,
+      largestValidImprovementMs: normalized.largestValidImprovementMs,
+      largestValidImprovementDriverId: normalized.largestValidImprovementDriverId,
       maxImpactKmh: normalized.maxImpactKmh,
       leaderGapMs: normalized.leaderGapMs,
       paceSummary: normalized.paceSummary,
+      driverSummaries: normalized.driverSummaries,
+      rankedDriverCount: normalized.rankedDriverCount,
       entries: normalized.entries,
       source: sourceMeta,
     };

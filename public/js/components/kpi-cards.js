@@ -1,17 +1,11 @@
-import { formatTime, formatTimeDelta, formatGap } from '../formatters.js';
-
-const VALID_LAP_FLAG = 2;
-
-function isValidLap(lap) {
-  return lap?.flags === VALID_LAP_FLAG && Number.isFinite(lap.timeMs) && lap.timeMs > 0;
-}
+import { formatTime, formatTimeDelta } from '../formatters.js';
 
 export function createKpiCards(session) {
   const container = document.createElement('section');
   container.className = 'kpi-strip';
   container.setAttribute('aria-label', 'Key performance indicators');
 
-  const classifiedCount = (session.entries || []).filter(e => e.bestLapMs !== null).length;
+  const classifiedCount = session.rankedDriverCount || 0;
 
   const invalidCount = session.invalidLapCount || 0;
   const validCount = session.validLapCount || 0;
@@ -19,8 +13,8 @@ export function createKpiCards(session) {
   const cards = [
     {
       label: 'BEST LAP',
-      value: session.bestLapMs !== null ? formatTime(session.bestLapMs) : '—',
-      detail: session.bestLapMs !== null ? getBestLapDriver(session) : '',
+      value: session.bestValidLapMs !== null ? formatTime(session.bestValidLapMs) : 'NO VALID LAP',
+      detail: session.bestValidLapMs !== null ? getBestLapDriver(session) : '',
     },
     {
       label: 'VALID LAPS',
@@ -31,8 +25,8 @@ export function createKpiCards(session) {
     },
     {
       label: 'BEST IMPROVEMENT',
-      value: session.largestImprovementMs !== null ? formatTimeDelta(session.largestImprovementMs) : '—',
-      detail: session.largestImprovementMs !== null ? getImprovementDriver(session) : '',
+      value: session.largestValidImprovementMs !== null ? formatTimeDelta(session.largestValidImprovementMs) : '—',
+      detail: session.largestValidImprovementMs !== null ? getImprovementDriver(session) : '',
     },
     {
       label: 'LEADER GAP',
@@ -67,40 +61,23 @@ export function createKpiCards(session) {
 }
 
 function getBestLapDriver(session) {
-  if (!session.entries || session.bestLapMs === null) return '';
-  const entry = session.entries.find(e => e.bestLapMs === session.bestLapMs);
-  return entry ? entry.driver.nickname : '';
+  if (!session.driverSummaries || session.bestValidLapMs === null) return '';
+  return session.driverSummaries.find(driver => driver.bestValidLapMs === session.bestValidLapMs)?.driverName || '';
 }
 
 function getImprovementDriver(session) {
-  if (!session.entries || session.largestImprovementMs === null) return '';
-  let bestDriver = '';
-  for (const entry of session.entries) {
-    const validLaps = entry.laps.filter(l => isValidLap(l));
-    if (validLaps.length >= 2) {
-      const sorted = [...validLaps].sort((a, b) => a.timeMs - b.timeMs);
-      const improvement = sorted[sorted.length - 1].timeMs - sorted[0].timeMs;
-      if (improvement === session.largestImprovementMs) {
-        bestDriver = entry.driver.nickname;
-        break;
-      }
-    }
-  }
-  return bestDriver;
+  if (!session.driverSummaries || session.largestValidImprovementMs === null) return '';
+  return session.driverSummaries.find(driver => driver.driverId === session.largestValidImprovementDriverId)?.driverName || '';
 }
 
 function getLeaderGapValue(session) {
-  if (!session.entries || session.leaderGapMs === null) return '—';
-  const classified = session.entries.filter(e => e.bestLapMs !== null);
-  if (classified.length < 2) return '—';
+  if ((session.rankedDriverCount || 0) < 2 || session.leaderGapMs === null) return '—';
   if (session.leaderGapMs === 0) return 'TIE';
   return formatTimeDelta(session.leaderGapMs);
 }
 
 function getLeaderGapDetail(session) {
-  if (!session.entries || session.leaderGapMs === null) return '';
-  const classified = session.entries.filter(e => e.bestLapMs !== null);
-  if (classified.length < 2) return '';
+  if ((session.rankedDriverCount || 0) < 2 || session.leaderGapMs === null) return '';
   if (session.leaderGapMs === 0) return 'TIED LEADER';
   return 'P1 to P2';
 }

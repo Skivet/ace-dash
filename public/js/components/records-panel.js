@@ -1,4 +1,4 @@
-import { formatTime, formatTimeDelta, formatDateTime } from '../formatters.js';
+import { formatTime, formatDateTime } from '../formatters.js';
 
 export function createRecordsPanel(records, trackName, layoutName, onSessionSelect) {
   const section = document.createElement('section');
@@ -46,10 +46,11 @@ export function createRecordsPanel(records, trackName, layoutName, onSessionSele
   }
   table.appendChild(header);
 
-  const outrightBest = records[0]?.bestLapMs || null;
-  for (const r of records) {
-    const row = document.createElement('div');
-    row.className = 'records-table__row' + (r.isOutrightRecord ? ' records-table__row--record' : '');
+  const renderRows = (expanded = false) => {
+    table.querySelectorAll('.records-table__row').forEach(row => row.remove());
+    for (const r of expanded ? records : records.slice(0, 10)) {
+      const row = document.createElement('div');
+      row.className = 'records-table__row' + (r.isOutrightRecord ? ' records-table__row--record' : '');
 
     const rankEl = document.createElement('div');
     rankEl.className = 'records-table__col-rank';
@@ -62,6 +63,7 @@ export function createRecordsPanel(records, trackName, layoutName, onSessionSele
     const driverEl = document.createElement('div');
     driverEl.className = 'records-table__col-driver';
     driverEl.textContent = r.driverName;
+    driverEl.title = r.driverName;
     if (onSessionSelect) {
       driverEl.style.cursor = 'pointer';
       driverEl.addEventListener('click', () => {
@@ -73,6 +75,7 @@ export function createRecordsPanel(records, trackName, layoutName, onSessionSele
     const carEl = document.createElement('div');
     carEl.className = 'records-table__col-car';
     carEl.textContent = r.carModel;
+    carEl.title = r.carModel;
     if (onSessionSelect) {
       carEl.style.cursor = 'pointer';
       carEl.addEventListener('click', () => {
@@ -105,6 +108,25 @@ export function createRecordsPanel(records, trackName, layoutName, onSessionSele
     row.appendChild(gapEl);
     row.appendChild(dateEl);
     table.appendChild(row);
+    }
+  };
+  renderRows();
+
+  if (records.length > 10) {
+    const toggle = document.createElement('button');
+    toggle.className = 'records-table__more';
+    toggle.type = 'button';
+    toggle.textContent = `VIEW ALL ${records.length}`;
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.addEventListener('click', () => {
+      const expanded = toggle.getAttribute('aria-expanded') === 'true';
+      toggle.setAttribute('aria-expanded', String(!expanded));
+      toggle.textContent = expanded ? `VIEW ALL ${records.length}` : 'SHOW TOP 10';
+      renderRows(!expanded);
+    });
+    section.appendChild(table);
+    section.appendChild(toggle);
+    return section;
   }
 
   section.appendChild(table);
@@ -130,7 +152,7 @@ export function createCarRecordsPanel(carRecords, outrightBest, onSessionSelect)
   }
 
   const table = document.createElement('div');
-  table.className = 'records-table';
+  table.className = 'records-table records-table--cars';
 
   const header = document.createElement('div');
   header.className = 'records-table__header';
@@ -159,6 +181,7 @@ export function createCarRecordsPanel(carRecords, outrightBest, onSessionSelect)
     const carEl = document.createElement('div');
     carEl.className = 'records-table__col-car';
     carEl.textContent = r.carModel;
+    carEl.title = r.carModel;
 
     const timeEl = document.createElement('div');
     timeEl.className = 'records-table__col-time';
@@ -167,6 +190,7 @@ export function createCarRecordsPanel(carRecords, outrightBest, onSessionSelect)
     const driverEl = document.createElement('div');
     driverEl.className = 'records-table__col-driver';
     driverEl.textContent = r.driverName;
+    driverEl.title = r.driverName;
 
     const gapEl = document.createElement('div');
     gapEl.className = 'records-table__col-gap';

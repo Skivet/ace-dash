@@ -202,6 +202,11 @@ body {
   padding: 8px 4px;
 }
 
+.records-table--cars .records-table__header,
+.records-table--cars .records-table__row {
+  grid-template-columns: minmax(220px, 2fr) minmax(90px, 0.8fr) minmax(140px, 1.2fr) minmax(80px, 0.7fr) minmax(72px, 0.6fr) minmax(72px, 0.6fr);
+}
+
 .records-table__header {
   border-bottom: 1px solid var(--border);
   margin-bottom: 4px;
@@ -286,10 +291,16 @@ body {
 }
 
 .records-table__more {
+  align-self: flex-end;
+  padding: 6px 0;
+  border: 0;
+  background: none;
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--accent-cyan);
   text-align: right;
   margin-top: 8px;
+  cursor: pointer;
+  letter-spacing: 0.06em;
 }
 
 .records-panel__subtitle {
@@ -549,6 +560,10 @@ body {
   color: #7a8ba8;
 }
 
+.leaderboard__row--no-lap {
+  opacity: 0.72;
+}
+
 .leaderboard__row--no-lap .leaderboard__car {
   color: #6b7a94;
 }
@@ -619,6 +634,20 @@ body {
 
 .lap-chart__bar--best {
   background: var(--accent-cyan);
+}
+
+.lap-chart__bar--invalid {
+  background: #40506a;
+  opacity: 0.7;
+}
+
+.lap-chart__row--invalid .lap-chart__label,
+.lap-chart__row--invalid .lap-chart__time {
+  color: var(--text-muted);
+}
+
+.lap-chart__row--invalid .lap-chart__flag {
+  color: var(--accent-orange);
 }
 
 .lap-chart__time {
@@ -1036,6 +1065,20 @@ body {
 
 .pace-summary__row--leader .pace-summary__col-gap {
   color: var(--accent-cyan);
+}
+
+.pace-summary__row--no-valid {
+  opacity: 0.7;
+}
+
+.pace-summary__row--no-valid .pace-summary__driver,
+.pace-summary__row--no-valid .pace-summary__car,
+.pace-summary__row--no-valid .pace-summary__col-laps,
+.pace-summary__row--no-valid .pace-summary__col-best,
+.pace-summary__row--no-valid .pace-summary__col-gap,
+.pace-summary__row--no-valid .pace-summary__col-avg,
+.pace-summary__row--no-valid .pace-summary__col-range {
+  color: var(--text-muted);
 }
 
 .pace-summary__row:has(.pace-summary__col-laps:contains('0')) .pace-summary__col-best,

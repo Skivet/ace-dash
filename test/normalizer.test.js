@@ -87,9 +87,8 @@ describe('normalize - session 1 (practice with laps)', () => {
     assert.equal(session.completedLapCount, 3);
   });
 
-  it('computes largest improvement', () => {
-    assert.ok(session.largestImprovementMs !== null, 'should have an improvement');
-    assert.equal(session.largestImprovementMs, 7335);
+  it('does not derive improvement across an invalid lap', () => {
+    assert.equal(session.largestValidImprovementMs, null);
   });
 
   it('computes max impact from collisions', () => {
@@ -129,13 +128,12 @@ describe('normalize - session 1 (practice with laps)', () => {
     }
   });
 
-  it('computes classified driver count as entries with at least one completed lap', () => {
-    const classified = session.entries.filter(e => e.bestLapMs !== null);
-    assert.equal(classified.length, 2);
+  it('classifies only drivers with a valid lap', () => {
+    assert.equal(session.rankedDriverCount, 1);
   });
 
-  it('computes leaderGapMs as the gap between P1 and P2 best laps', () => {
-    assert.equal(session.leaderGapMs, 47610);
+  it('requires two valid drivers for leaderGapMs', () => {
+    assert.equal(session.leaderGapMs, null);
   });
 
   it('computes per-entry pace metrics for morphy', () => {
@@ -143,9 +141,9 @@ describe('normalize - session 1 (practice with laps)', () => {
     assert.ok(morphy, 'morphy should exist');
     assert.equal(morphy.completedLapCount, 2);
     assert.equal(morphy.bestLapMs, 409500);
-    assert.equal(morphy.gapToLeaderMs, 0);
-    assert.equal(morphy.averageLapMs, 413168);
-    assert.equal(morphy.lapRangeMs, 7335);
+    assert.equal(morphy.bestValidLapMs, 409500);
+    assert.equal(morphy.validAverageLapMs, 409500);
+    assert.equal(morphy.validLapRangeMs, null);
   });
 
   it('computes per-entry pace metrics for lukeyeldukey', () => {
@@ -153,9 +151,9 @@ describe('normalize - session 1 (practice with laps)', () => {
     assert.ok(luke, 'lukeyeldukey should exist');
     assert.equal(luke.completedLapCount, 1);
     assert.equal(luke.bestLapMs, 457110);
-    assert.equal(luke.gapToLeaderMs, 47610);
-    assert.equal(luke.averageLapMs, 457110);
-    assert.equal(luke.lapRangeMs, null);
+    assert.equal(luke.bestValidLapMs, null);
+    assert.equal(luke.validAverageLapMs, null);
+    assert.equal(luke.validLapRangeMs, null);
   });
 
   it('sets null pace metrics for entries with zero laps', () => {
@@ -453,7 +451,7 @@ describe('normalize - pace metric edge cases', () => {
       ],
     }));
     assert.equal(s.leaderGapMs, null);
-    assert.equal(s.entries[0].gapToLeaderMs, 0);
+    assert.equal(s.entries[0].gapToLeaderMs, null);
   });
 
   it('handles same driver in multiple cars with separate pace metrics', () => {
@@ -478,16 +476,16 @@ describe('normalize - pace metric edge cases', () => {
     assert.equal(carAEntry.bestLapMs, 400000);
     assert.equal(carAEntry.averageLapMs, 405000);
     assert.equal(carAEntry.lapRangeMs, 10000);
-    assert.equal(carAEntry.gapToLeaderMs, 10000);
+    assert.equal(carAEntry.gapToLeaderMs, null);
     assert.equal(carBEntry.completedLapCount, 1);
     assert.equal(carBEntry.bestLapMs, 390000);
-    assert.equal(carBEntry.gapToLeaderMs, 0);
+    assert.equal(carBEntry.gapToLeaderMs, null);
     assert.equal(carBEntry.averageLapMs, 390000);
     assert.equal(carBEntry.lapRangeMs, null);
-    assert.equal(s.leaderGapMs, 10000);
+    assert.equal(s.leaderGapMs, null, 'one driver in two cars is still one ranked driver');
   });
 
-  it('includes flagged laps in pace calculations', () => {
+  it('excludes flagged laps from valid pace calculations', () => {
     const driver = { guid: { a: '1', b: '2' }, nickname: 'test', nation: 'USA' };
     const car = { car_id: { a: '3', b: '4' }, model_displayname: 'Car', race_number: 1 };
     const s = normalize(buildMinimal({
@@ -501,9 +499,9 @@ describe('normalize - pace metric edge cases', () => {
       ],
     }));
     assert.equal(s.entries[0].completedLapCount, 3);
-    assert.equal(s.entries[0].bestLapMs, 390000);
-    assert.equal(s.entries[0].averageLapMs, 400000);
-    assert.equal(s.entries[0].lapRangeMs, 20000);
+    assert.equal(s.entries[0].bestValidLapMs, 410000);
+    assert.equal(s.entries[0].validAverageLapMs, 410000);
+    assert.equal(s.entries[0].validLapRangeMs, null);
   });
 
   it('rounds half-millisecond mean correctly', () => {
@@ -514,11 +512,11 @@ describe('normalize - pace metric edge cases', () => {
       driver_standings: [{ a: '1', b: '2' }],
       car_standings: [{ car_id: { a: '3', b: '4' } }],
       laps: [
-        { driver_key: { a: '1', b: '2' }, car_key: { a: '3', b: '4' }, time: 400001, flags: 1 },
-        { driver_key: { a: '1', b: '2' }, car_key: { a: '3', b: '4' }, time: 400002, flags: 1 },
+        { driver_key: { a: '1', b: '2' }, car_key: { a: '3', b: '4' }, time: 400001, flags: 2 },
+        { driver_key: { a: '1', b: '2' }, car_key: { a: '3', b: '4' }, time: 400002, flags: 2 },
       ],
     }));
-    assert.equal(s.entries[0].averageLapMs, 400002);
+    assert.equal(s.entries[0].validAverageLapMs, 400002);
   });
 
   it('handles empty penalties', () => {
@@ -583,7 +581,7 @@ describe('normalize - pace metric edge cases', () => {
   });
 });
 
-describe('normalize - pace summary canonical structure', () => {
+describe('normalize - valid pace summary canonical structure', () => {
   let session;
 
   before(async () => {
@@ -595,25 +593,16 @@ describe('normalize - pace summary canonical structure', () => {
     assert.ok(Array.isArray(session.paceSummary), 'paceSummary should be an array');
   });
 
-  it('has exactly two pace summary entries (classified only)', () => {
-    assert.equal(session.paceSummary.length, 2);
+  it('keeps all drivers visible, including invalid-only and no-lap drivers', () => {
+    assert.equal(session.paceSummary.length, 3);
   });
 
-  it('excludes entries with zero completed laps from paceSummary', () => {
-    const hasZeroLaps = session.paceSummary.some(e => e.completedLapCount === 0);
-    assert.equal(hasZeroLaps, false, 'paceSummary should not include entries with zero laps');
-  });
-
-  it('has canonical fields on each pace summary entry', () => {
+  it('uses explicit valid-lap fields', () => {
     for (const entry of session.paceSummary) {
-      assert.ok(typeof entry.entryId === 'string', 'entryId should be a string');
-      assert.ok(typeof entry.driverName === 'string', 'driverName should be a string');
-      assert.ok(typeof entry.carName === 'string', 'carName should be a string');
-      assert.ok(typeof entry.completedLapCount === 'number', 'completedLapCount should be a number');
-      assert.ok(entry.bestLapMs !== null, 'bestLapMs should not be null');
-      assert.ok(entry.averageLapMs !== null, 'averageLapMs should not be null');
-      assert.ok(typeof entry.gapToLeaderMs === 'number', 'gapToLeaderMs should be a number');
-      assert.ok(typeof entry.isLeader === 'boolean', 'isLeader should be a boolean');
+      assert.ok(typeof entry.validLapCount === 'number');
+      assert.ok(typeof entry.invalidLapCount === 'number');
+      assert.ok(typeof entry.hasValidLap === 'boolean');
+      assert.ok(typeof entry.isLeader === 'boolean');
     }
   });
 
@@ -627,20 +616,19 @@ describe('normalize - pace summary canonical structure', () => {
     assert.equal(leader.gapToLeaderMs, 0);
   });
 
-  it('P2 has correct gapToLeaderMs', () => {
-    const p2 = session.paceSummary.find(e => !e.isLeader);
-    assert.equal(p2.gapToLeaderMs, 47610);
+  it('invalid-only drivers have no gap', () => {
+    const luke = session.paceSummary.find(e => e.driverName === 'lukeyeldukey');
+    assert.equal(luke.gapToLeaderMs, null);
   });
 
-  it('leaderGapMs matches P2 gap', () => {
-    assert.equal(session.leaderGapMs, 47610);
+  it('has no leader gap with only one valid driver', () => {
+    assert.equal(session.leaderGapMs, null);
   });
 
-  it('sorts paceSummary by bestLapMs ascending', () => {
-    const bestLaps = session.paceSummary.map(e => e.bestLapMs);
-    for (let i = 1; i < bestLaps.length; i++) {
-      assert.ok(bestLaps[i - 1] <= bestLaps[i], 'paceSummary should be sorted by bestLapMs ascending');
-    }
+  it('sorts valid drivers before unranked drivers', () => {
+    assert.equal(session.paceSummary[0].driverName, 'morphy');
+    assert.equal(session.paceSummary[0].hasValidLap, true);
+    assert.ok(session.paceSummary.slice(1).every(entry => !entry.hasValidLap));
   });
 
   it('uses entryId as identity, not driverName', () => {
@@ -652,10 +640,10 @@ describe('normalize - pace summary canonical structure', () => {
   it('morphy paceSummary entry has correct metrics', () => {
     const morphy = session.paceSummary.find(e => e.driverName === 'morphy');
     assert.ok(morphy, 'morphy should be in paceSummary');
-    assert.equal(morphy.completedLapCount, 2);
-    assert.equal(morphy.bestLapMs, 409500);
-    assert.equal(morphy.averageLapMs, 413168);
-    assert.equal(morphy.rangeMs, 7335);
+    assert.equal(morphy.validLapCount, 1);
+    assert.equal(morphy.bestValidLapMs, 409500);
+    assert.equal(morphy.validAverageLapMs, 409500);
+    assert.equal(morphy.validLapRangeMs, null);
     assert.equal(morphy.gapToLeaderMs, 0);
     assert.equal(morphy.isLeader, true);
   });
@@ -665,17 +653,20 @@ describe('normalize - pace summary canonical structure', () => {
       e.driverName === 'lukeyeldukey' && e.carName.includes('GT3 R')
     );
     assert.ok(luke, 'lukeyeldukey in GT3 R should be in paceSummary');
-    assert.equal(luke.completedLapCount, 1);
-    assert.equal(luke.bestLapMs, 457110);
-    assert.equal(luke.averageLapMs, 457110);
-    assert.equal(luke.rangeMs, null);
-    assert.equal(luke.gapToLeaderMs, 47610);
+    assert.equal(luke.validLapCount, 0);
+    assert.equal(luke.invalidLapCount, 1);
+    assert.equal(luke.bestValidLapMs, null);
+    assert.equal(luke.validAverageLapMs, null);
+    assert.equal(luke.validLapRangeMs, null);
+    assert.equal(luke.gapToLeaderMs, null);
     assert.equal(luke.isLeader, false);
   });
 
-  it('skivet is excluded from paceSummary', () => {
+  it('skivet remains visible as an unavailable pace row', () => {
     const skivet = session.paceSummary.find(e => e.driverName === 'skivet');
-    assert.equal(skivet, undefined, 'skivet should not be in paceSummary');
+    assert.ok(skivet);
+    assert.equal(skivet.hasValidLap, false);
+    assert.equal(skivet.validLapCount, 0);
   });
 
   it('second lukeyeldukey entry is excluded from paceSummary', () => {

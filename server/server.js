@@ -4,6 +4,7 @@ import { join, extname, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Importer } from './importer.js';
 import { SessionStore } from './session-store.js';
+import { computeOverallRecords, computeCarRecords } from './club-records.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = join(__dirname, '..', 'public');
@@ -128,121 +129,6 @@ function computeClubStats(sessions) {
   };
 }
 
-function computeOverallRecords(sessions, trackName, layoutName) {
-  const records = [];
-  for (const s of sessions) {
-    if (s.track.name !== trackName || s.track.layout !== layoutName) continue;
-    for (const e of s.entries || []) {
-      if (e.bestValidLapMs === null) continue;
-      records.push({
-        driverId: e.driver.id,
-        driverName: e.driver.nickname,
-        carId: e.car.id,
-        carModel: e.car.model,
-        bestLapMs: e.bestValidLapMs,
-        gapToLeaderMs: e.gapToLeaderMs,
-        sessionId: s.id,
-        sessionName: s.session.name,
-        sessionType: s.session.type,
-        importedAt: s.source?.importedAt || '',
-        validLapCount: e.validLapCount || 0,
-      });
-    }
-  }
-
-  records.sort((a, b) => a.bestLapMs - b.bestLapMs);
-
-  const outrightBest = records.length > 0 ? records[0].bestLapMs : null;
-  let tiedCount = 1;
-  for (let i = 1; i <= records.length; i++) {
-    if (i < records.length && records[i].bestLapMs === records[i - 1].bestLapMs) {
-      tiedCount++;
-    } else {
-      for (let j = i - tiedCount; j < i; j++) {
-        records[j].rank = i - tiedCount + 1;
-        records[j].isTied = tiedCount > 1;
-      }
-      tiedCount = 1;
-    }
-  }
-
-  for (const r of records) {
-    r.gapToOutrightMs = outrightBest !== null ? r.bestLapMs - outrightBest : null;
-    r.isOutrightRecord = r.bestLapMs === outrightBest;
-  }
-
-  return records;
-}
-
-function computeCarRecords(sessions, trackName, layoutName) {
-  const carMap = new Map();
-
-  for (const s of sessions) {
-    if (s.track.name !== trackName || s.track.layout !== layoutName) continue;
-    for (const e of s.entries || []) {
-      if (e.bestValidLapMs === null) continue;
-      const key = e.car.model;
-      if (!carMap.has(key)) {
-        carMap.set(key, {
-          carId: e.car.id,
-          carModel: e.car.model,
-          bestLapMs: e.bestValidLapMs,
-          driverId: e.driver.id,
-          driverName: e.driver.nickname,
-          sessionId: s.id,
-          sessionName: s.session.name,
-          sessionType: s.session.type,
-          importedAt: s.source?.importedAt || '',
-          validLapCount: e.validLapCount || 0,
-          totalLaps: e.completedLapCount || 0,
-          sessionCount: 1,
-        });
-      } else {
-        const existing = carMap.get(key);
-        if (e.bestValidLapMs < existing.bestLapMs) {
-          existing.bestLapMs = e.bestValidLapMs;
-          existing.driverId = e.driver.id;
-          existing.driverName = e.driver.nickname;
-          existing.sessionId = s.id;
-          existing.sessionName = s.session.name;
-          existing.sessionType = s.session.type;
-          existing.importedAt = s.source?.importedAt || '';
-          existing.validLapCount = e.validLapCount || 0;
-          existing.totalLaps = e.completedLapCount || 0;
-        } else {
-          existing.totalLaps += e.completedLapCount || 0;
-          existing.validLapCount += e.validLapCount || 0;
-        }
-        existing.sessionCount++;
-      }
-    }
-  }
-
-  const records = [...carMap.values()];
-  records.sort((a, b) => a.bestLapMs - b.bestLapMs);
-
-  const outrightBest = records.length > 0 ? records[0].bestLapMs : null;
-  let tiedCount = 1;
-  for (let i = 1; i <= records.length; i++) {
-    if (i < records.length && records[i].bestLapMs === records[i - 1].bestLapMs) {
-      tiedCount++;
-    } else {
-      for (let j = i - tiedCount; j < i; j++) {
-        records[j].rank = i - tiedCount + 1;
-        records[j].isTied = tiedCount > 1;
-      }
-      tiedCount = 1;
-    }
-  }
-
-  for (const r of records) {
-    r.gapToOutrightMs = outrightBest !== null ? r.bestLapMs - outrightBest : null;
-    r.isOutrightRecord = r.bestLapMs === outrightBest;
-  }
-
-  return records;
-}
-
 async function handleApi(req, res, { path, query }) {
   if (path === '/api/health') {
     return sendJson(res, 200, { status: 'ok', imported: store.list().length });
@@ -251,7 +137,7 @@ async function handleApi(req, res, { path, query }) {
   if (path === '/api/sessions') {
     const sessions = store.list();
     return sendJson(res, 200, sessions.map(s => {
-      const bestEntry = s.entries?.find(e => e.bestLapMs === s.bestLapMs);
+      const bestDriver = s.driverSummaries?.find(driver => driver.bestValidLapMs === s.bestValidLapMs);
       return {
         id: s.id,
         track: s.track,
@@ -259,9 +145,12 @@ async function handleApi(req, res, { path, query }) {
         completedLapCount: s.completedLapCount,
         validLapCount: s.validLapCount ?? 0,
         invalidLapCount: s.invalidLapCount ?? 0,
-        bestLapMs: s.bestLapMs,
+        bestValidLapMs: s.bestValidLapMs,
+        fastestInvalidLapMs: s.fastestInvalidLapMs,
+        hasValidLap: s.hasValidLap,
         entriesCount: s.entries?.length ?? 0,
-        bestDriverNickname: bestEntry?.driver?.nickname ?? '',
+        rankedDriverCount: s.rankedDriverCount ?? 0,
+        bestValidDriverNickname: bestDriver?.driverName ?? '',
         source: s.source,
       };
     }));
@@ -336,9 +225,12 @@ async function handleApi(req, res, { path, query }) {
       session: s.session,
       validLapCount: s.validLapCount ?? 0,
       invalidLapCount: s.invalidLapCount ?? 0,
-      bestLapMs: s.bestLapMs,
+      bestValidLapMs: s.bestValidLapMs,
+      fastestInvalidLapMs: s.fastestInvalidLapMs,
+      hasValidLap: s.hasValidLap,
       entriesCount: s.entries?.length ?? 0,
-      bestDriverNickname: (s.entries?.find(e => e.bestLapMs === s.bestLapMs))?.driver?.nickname || '',
+      rankedDriverCount: s.rankedDriverCount ?? 0,
+      bestValidDriverNickname: (s.driverSummaries?.find(driver => driver.bestValidLapMs === s.bestValidLapMs))?.driverName || '',
       source: s.source,
     }));
     return sendJson(res, 200, { sessions: recent });
@@ -372,14 +264,14 @@ async function handleApi(req, res, { path, query }) {
     const entries = carSessions.flatMap(s =>
       (s.entries || []).filter(e => e.car.model === carModel && e.bestValidLapMs !== null)
     );
-    entries.sort((a, b) => a.bestLapMs - b.bestLapMs);
-    const bestLapMs = entries.length > 0 ? entries[0].bestLapMs : null;
+    entries.sort((a, b) => a.bestValidLapMs - b.bestValidLapMs);
+    const bestLapMs = entries.length > 0 ? entries[0].bestValidLapMs : null;
     const result = entries.map(e => ({
       driverId: e.driver.id,
       driverName: e.driver.nickname,
       carModel: e.car.model,
-      bestLapMs: e.bestLapMs,
-      gapToLeaderMs: e.bestLapMs - (bestLapMs || 0),
+      bestLapMs: e.bestValidLapMs,
+      gapToLeaderMs: e.bestValidLapMs - (bestLapMs || 0),
       sessionId: e.sessionId,
       sessionName: e.sessionName,
       importedAt: e.importedAt,
@@ -396,14 +288,14 @@ async function handleApi(req, res, { path, query }) {
     const entries = driverSessions.flatMap(s =>
       (s.entries || []).filter(e => e.driver.id === driverId && e.bestValidLapMs !== null)
     );
-    entries.sort((a, b) => a.bestLapMs - b.bestLapMs);
-    const bestLapMs = entries.length > 0 ? entries[0].bestLapMs : null;
+    entries.sort((a, b) => a.bestValidLapMs - b.bestValidLapMs);
+    const bestLapMs = entries.length > 0 ? entries[0].bestValidLapMs : null;
     const result = entries.map(e => ({
       driverId: e.driver.id,
       driverName: e.driver.nickname,
       carModel: e.car.model,
-      bestLapMs: e.bestLapMs,
-      gapToLeaderMs: e.bestLapMs - (bestLapMs || 0),
+      bestLapMs: e.bestValidLapMs,
+      gapToLeaderMs: e.bestValidLapMs - (bestLapMs || 0),
       sessionId: e.sessionId,
       sessionName: e.sessionName,
       importedAt: e.importedAt,

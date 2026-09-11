@@ -37,7 +37,7 @@ export function createPaceSummary(session) {
 
   for (const entry of paceEntries) {
     const row = document.createElement('div');
-    row.className = 'pace-summary__row' + (entry.isLeader ? ' pace-summary__row--leader' : '');
+    row.className = 'pace-summary__row' + (entry.isLeader ? ' pace-summary__row--leader' : '') + (!entry.hasValidLap ? ' pace-summary__row--no-valid' : '');
 
     const driverCell = document.createElement('div');
     driverCell.className = 'pace-summary__col-driver';
@@ -55,11 +55,11 @@ export function createPaceSummary(session) {
 
     const lapsCell = document.createElement('div');
     lapsCell.className = 'pace-summary__col-laps';
-    lapsCell.textContent = String(entry.completedLapCount);
+    lapsCell.textContent = String(entry.validLapCount);
 
     const bestCell = document.createElement('div');
     bestCell.className = 'pace-summary__col-best';
-    bestCell.textContent = entry.bestLapMs !== null ? formatTime(entry.bestLapMs) : '—';
+    bestCell.textContent = entry.bestValidLapMs !== null ? formatTime(entry.bestValidLapMs) : 'NO VALID LAP';
 
     const gapCell = document.createElement('div');
     gapCell.className = 'pace-summary__col-gap';
@@ -67,11 +67,11 @@ export function createPaceSummary(session) {
 
     const avgCell = document.createElement('div');
     avgCell.className = 'pace-summary__col-avg';
-    avgCell.textContent = entry.averageLapMs !== null ? formatTime(entry.averageLapMs) : '—';
+    avgCell.textContent = entry.validAverageLapMs !== null ? formatTime(entry.validAverageLapMs) : '—';
 
     const rangeCell = document.createElement('div');
     rangeCell.className = 'pace-summary__col-range';
-    rangeCell.textContent = entry.rangeMs !== null ? formatLapRange(entry.rangeMs) : '—';
+    rangeCell.textContent = entry.validLapRangeMs !== null ? formatLapRange(entry.validLapRangeMs) : '—';
 
     row.appendChild(driverCell);
     row.appendChild(lapsCell);
