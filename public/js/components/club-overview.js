@@ -1,28 +1,11 @@
 import { formatTime, formatTimeDelta, formatDateTime } from '../formatters.js';
 
-export function createClubOverview(container, stats, tracks, records) {
+export function createClubOverview(container, stats, tracks, records, recentSessions) {
   container.innerHTML = '';
-
-  const shell = document.createElement('div');
-  shell.className = 'dashboard-shell';
-
-  const appBar = document.createElement('div');
-  appBar.className = 'app-bar';
-
-  const brand = document.createElement('h1');
-  brand.className = 'app-bar__brand';
-  brand.textContent = 'BENTOCLUB';
-
-  const subtitle = document.createElement('span');
-  subtitle.className = 'app-bar__status';
-  subtitle.textContent = 'Club timing and session history';
-
-  appBar.appendChild(brand);
-  appBar.appendChild(subtitle);
-  shell.appendChild(appBar);
 
   const statsGrid = document.createElement('div');
   statsGrid.className = 'kpi-strip';
+  statsGrid.className += ' kpi-strip--5';
 
   const statCards = [
     {
@@ -74,10 +57,7 @@ export function createClubOverview(container, stats, tracks, records) {
     statsGrid.appendChild(el);
   }
 
-  shell.appendChild(statsGrid);
-
-  const mainGrid = document.createElement('div');
-  mainGrid.className = 'session-grid';
+  container.appendChild(statsGrid);
 
   if (records && records.length > 0) {
     const recordsPanel = document.createElement('section');
@@ -164,87 +144,62 @@ export function createClubOverview(container, stats, tracks, records) {
     }
 
     recordsPanel.appendChild(table);
-    mainGrid.appendChild(recordsPanel);
-
-    const rightPanel = document.createElement('div');
-    rightPanel.className = 'session-grid__right';
-
-    if (tracks.length > 0) {
-      const topCarsPanel = document.createElement('section');
-      topCarsPanel.className = 'panel car-records-panel';
-      topCarsPanel.setAttribute('aria-label', 'Fastest car records');
-
-      const carTitle = document.createElement('h3');
-      carTitle.className = 'panel__title';
-      carTitle.textContent = 'FASTEST BY CAR';
-      topCarsPanel.appendChild(carTitle);
-
-      const carTable = document.createElement('div');
-      carTable.className = 'records-table';
-
-      const carHeader = document.createElement('div');
-      carHeader.className = 'records-table__header';
-
-      const carHeaders = [
-        { text: 'CAR', className: 'records-table__col-car' },
-        { text: 'RECORD', className: 'records-table__col-time' },
-        { text: 'DRIVER', className: 'records-table__col-driver' },
-        { text: 'GAP', className: 'records-table__col-gap' },
-      ];
-
-      for (const h of carHeaders) {
-        const el = document.createElement('div');
-        el.className = h.className;
-        el.textContent = h.text;
-        carHeader.appendChild(el);
-      }
-      carTable.appendChild(carHeader);
-
-      const outrightBest = records[0]?.bestLapMs || null;
-      for (const r of records) {
-        const row = document.createElement('div');
-        row.className = 'records-table__row';
-
-        const carEl = document.createElement('div');
-        carEl.className = 'records-table__col-car';
-        carEl.textContent = r.carModel;
-
-        const timeEl = document.createElement('div');
-        timeEl.className = 'records-table__col-time';
-        timeEl.textContent = formatTime(r.bestLapMs);
-
-        const driverEl = document.createElement('div');
-        driverEl.className = 'records-table__col-driver';
-        driverEl.textContent = r.driverName;
-
-        const gapEl = document.createElement('div');
-        gapEl.className = 'records-table__col-gap';
-        if (r.isOutrightRecord) {
-          gapEl.textContent = '—';
-          gapEl.className += ' records-table__col-gap--record';
-        } else {
-          gapEl.textContent = r.gapToOutrightMs !== null ? `+${(r.gapToOutrightMs / 1000).toFixed(3)} s` : '—';
-        }
-
-        row.appendChild(carEl);
-        row.appendChild(timeEl);
-        row.appendChild(driverEl);
-        row.appendChild(gapEl);
-        carTable.appendChild(row);
-      }
-
-      topCarsPanel.appendChild(carTable);
-      rightPanel.appendChild(topCarsPanel);
-    }
-
-    mainGrid.appendChild(rightPanel);
+    container.appendChild(recordsPanel);
   } else {
     const empty = document.createElement('div');
     empty.className = 'panel';
-    empty.innerHTML = '<p class="empty-state">No records yet. Import ACE results to build the club record book.</p>';
-    mainGrid.appendChild(empty);
+    const explanation = stats.totalValidLaps > 0
+      ? 'No outright records for the selected track and layout. Select a different track from the selector above, or import more sessions to build the record book.'
+      : 'No valid lap records yet. Import ACE result files to build the club record book.';
+    empty.innerHTML = `<p class="empty-state">${explanation}</p>`;
+    container.appendChild(empty);
   }
 
-  shell.appendChild(mainGrid);
-  container.appendChild(shell);
+  if (recentSessions && recentSessions.length > 0) {
+    const history = createSessionHistory(recentSessions);
+    container.appendChild(history);
+  }
+}
+
+function createSessionHistory(sessions) {
+  const section = document.createElement('section');
+  section.className = 'session-history';
+  section.setAttribute('aria-label', 'Recent sessions');
+
+  const title = document.createElement('h3');
+  title.className = 'session-history__title';
+  title.textContent = 'RECENT SESSIONS';
+  section.appendChild(title);
+
+  const list = document.createElement('ul');
+  list.className = 'session-history__list';
+
+  for (const s of sessions) {
+    const li = document.createElement('li');
+    li.className = 'session-history__item';
+
+    const meta = document.createElement('div');
+    meta.className = 'session-history__meta-row';
+
+    const track = document.createElement('span');
+    track.className = 'session-history__track';
+    track.textContent = `${s.track?.name || 'Unknown'} — ${s.track?.layout || 'Unknown'}`;
+
+    const details = document.createElement('span');
+    details.className = 'session-history__details';
+    details.textContent = `${s.session?.type || '—'} · ${s.entriesCount || 0} drivers · ${s.validLapCount ?? 0} valid laps`;
+
+    const date = document.createElement('span');
+    date.className = 'session-history__date';
+    date.textContent = s.source?.importedAt ? formatDateTime(s.source.importedAt) : '—';
+
+    meta.appendChild(track);
+    meta.appendChild(details);
+    meta.appendChild(date);
+    li.appendChild(meta);
+    list.appendChild(li);
+  }
+
+  section.appendChild(list);
+  return section;
 }

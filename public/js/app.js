@@ -186,7 +186,7 @@ function renderClub() {
       overviewContent.appendChild(history);
     }
   } else {
-    createClubOverview(overviewContent, currentClubStats, currentTracks, currentRecords);
+    createClubOverview(overviewContent, currentClubStats, currentTracks, currentRecords, currentSessions.slice(0, 10));
   }
 
   shell.appendChild(overviewContent);
