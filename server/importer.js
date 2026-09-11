@@ -90,6 +90,7 @@ class Importer {
 
   async _processFile(filename) {
     if (this.watchedFiles.has(filename)) return;
+    if (this._isSkippedFilename(filename)) return;
 
     const filepath = join(this.resultsDir, filename);
     const stable = await this._waitForStability(filepath);
@@ -106,6 +107,10 @@ class Importer {
     try {
       const raw = await readFile(filepath, 'utf8');
       const parsed = JSON.parse(raw);
+      if (!this._isValidAceResult(parsed)) {
+        this._log(`skipping non-ACE file: ${filename}`);
+        return;
+      }
       const normalized = normalize(parsed);
       normalized.id = normalizedId;
 
@@ -156,6 +161,22 @@ class Importer {
   async _hashFile(filepath) {
     const data = await readFile(filepath);
     return createHash('sha256').update(data).digest('hex');
+  }
+
+  _isValidAceResult(parsed) {
+    if (!parsed || typeof parsed !== 'object') return false;
+    if (typeof parsed.track_name !== 'string' || !parsed.track_name) return false;
+    if (typeof parsed.session_type !== 'string') return false;
+    if (!Array.isArray(parsed.drivers)) return false;
+    if (!Array.isArray(parsed.cars)) return false;
+    if (!Array.isArray(parsed.driver_standings)) return false;
+    if (!Array.isArray(parsed.car_standings)) return false;
+    return true;
+  }
+
+  _isSkippedFilename(filename) {
+    const skip = ['manifest.json', '.DS_Store'];
+    return skip.includes(filename);
   }
 
   _log(msg, err) {

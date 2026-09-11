@@ -2,6 +2,12 @@
  * Normalizes raw ACE results JSON into the dashboard session model.
  */
 
+const VALID_LAP_FLAG = 2;
+
+function isValidLap(lap) {
+  return lap?.flags === VALID_LAP_FLAG && Number.isFinite(lap.timeMs) && lap.timeMs > 0;
+}
+
 /**
  * Parses a session timestamp from a filename containing the pattern
  * results_YYYYMMDD_HHMMSS_<session-type>.json.
@@ -258,4 +264,4 @@ function normalize(raw) {
   return normalized;
 }
 
-export { normalize, compositeId, parseTimestampFromFilename };
+export { normalize, compositeId, parseTimestampFromFilename, isValidLap, VALID_LAP_FLAG };

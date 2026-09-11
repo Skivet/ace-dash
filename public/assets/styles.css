@@ -1257,6 +1257,19 @@ body {
   .pace-summary__row:has(.pace-summary__col-laps:contains('0')) .pace-summary__col-range {
     color: var(--text-muted);
   }
+
+  .records-table__header,
+  .records-table__row {
+    grid-template-columns: 36px 1.2fr 0.9fr 0.8fr 0.7fr 0.7fr;
+  }
+
+  .records-table__col-date {
+    display: none;
+  }
+
+  .records-table__header > .records-table__col-date {
+    display: none;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1294,6 +1307,11 @@ body {
     max-width: none;
   }
 
+  .lap-chart__bars {
+    overflow-x: auto;
+    min-width: 0;
+  }
+
   .lap-chart__row {
     grid-template-columns: 100px 1fr;
   }
@@ -1301,6 +1319,28 @@ body {
   .lap-chart__time {
     display: block;
     font-size: 0.75rem;
+  }
+
+  .records-table {
+    overflow-x: auto;
+    min-width: 0;
+  }
+
+  .records-table__header,
+  .records-table__row {
+    grid-template-columns: 32px 1fr 0.9fr 0.9fr;
+  }
+
+  .records-table__col-car,
+  .records-table__header > .records-table__col-car {
+    display: none;
+  }
+
+  .records-table__col-laps,
+  .records-table__col-sessions,
+  .records-table__header > .records-table__col-laps,
+  .records-table__header > .records-table__col-sessions {
+    display: none;
   }
 
   .contact-summary__metrics {
@@ -1322,4 +1362,31 @@ body {
     animation: none;
     background: var(--border);
   }
+}
+
+/* ── Session history invalid ── */
+.session-history__invalid {
+  font-size: 0.6875rem;
+  color: var(--accent-orange);
+  margin-left: 8px;
+}
+
+.session-history__no-valid {
+  font-size: 0.6875rem;
+  color: var(--accent-orange);
+  margin-left: 8px;
+  font-weight: 600;
+}
+
+.records-table__col-rank--tied {
+  color: var(--accent-orange);
+}
+
+.records-table__col-laps,
+.records-table__col-sessions {
+  font-family: var(--font-mono-tabular);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  text-align: right;
 }

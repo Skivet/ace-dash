@@ -7,8 +7,15 @@ export function createLapChart(session) {
 
   const title = document.createElement('h3');
   title.className = 'panel__title';
-  title.textContent = 'COMPLETED LAPS';
+  title.textContent = 'VALID LAPS';
   section.appendChild(title);
+
+  const validCount = session.validLapCount || 0;
+  const invalidCount = session.invalidLapCount || 0;
+  const titleDetail = document.createElement('span');
+  titleDetail.className = 'panel__title-detail';
+  titleDetail.textContent = invalidCount > 0 ? `${validCount} valid · ${invalidCount} invalid` : `${validCount} valid`;
+  title.after(titleDetail);
 
   if (session.completedLapCount === 0) {
     const empty = document.createElement('p');
@@ -39,32 +46,31 @@ export function createLapChart(session) {
 
   for (const lap of allLaps) {
     const row = document.createElement('div');
-    row.className = 'lap-chart__row';
+    row.className = 'lap-chart__row' + (lap.flags !== 2 ? ' lap-chart__row--invalid' : '');
 
     const label = document.createElement('span');
-    label.className = 'lap-chart__label' + (lap.timeMs === session.bestLapMs ? ' lap-chart__label--best' : '');
+    label.className = 'lap-chart__label' + (lap.flags === 2 && lap.timeMs === session.bestLapMs ? ' lap-chart__label--best' : '');
     label.textContent = `${lap.driverNickname} L${lap.lapNumber}`;
 
     const barWrapper = document.createElement('div');
     barWrapper.className = 'lap-chart__bar-wrapper';
 
     const bar = document.createElement('div');
-    bar.className = 'lap-chart__bar' + (lap.timeMs === session.bestLapMs ? ' lap-chart__bar--best' : '');
+    bar.className = 'lap-chart__bar' + (lap.flags === 2 && lap.timeMs === session.bestLapMs ? ' lap-chart__bar--best' : '') + (lap.flags !== 2 ? ' lap-chart__bar--invalid' : '');
     const pct = Math.max(2, (lap.timeMs - baseline) * scale);
     bar.style.width = `${pct}%`;
     bar.setAttribute('role', 'img');
     bar.setAttribute('aria-label',
-      `${lap.driverNickname}, Lap ${lap.lapNumber}: ${formatTime(lap.timeMs)}`
+      `${lap.driverNickname}, Lap ${lap.lapNumber}: ${formatTime(lap.timeMs)}${lap.flags !== 2 ? ' (invalid)' : ''}`
     );
 
     const timeLabel = document.createElement('span');
-    timeLabel.className = 'lap-chart__time' + (lap.timeMs === session.bestLapMs ? ' lap-chart__time--best' : '');
+    timeLabel.className = 'lap-chart__time' + (lap.flags === 2 && lap.timeMs === session.bestLapMs ? ' lap-chart__time--best' : '');
     timeLabel.textContent = formatTime(lap.timeMs);
 
     const flagLabel = document.createElement('span');
     flagLabel.className = 'lap-chart__flag';
-    flagLabel.textContent = `flag ${lap.flags}`;
-    flagLabel.setAttribute('title', 'Flag value — meaning not yet verified');
+    flagLabel.textContent = lap.flags === 2 ? 'VALID' : 'INVALID';
 
     barWrapper.appendChild(bar);
     barWrapper.appendChild(timeLabel);
@@ -81,7 +87,7 @@ export function createLapChart(session) {
 
   const screenReaderNote = document.createElement('p');
   screenReaderNote.className = 'sr-only';
-  screenReaderNote.textContent = 'Lap times shown as horizontal bars. Flag values 1 and 2 are raw ACE values whose meanings are not yet verified.';
+  screenReaderNote.textContent = 'Lap times shown as horizontal bars. Valid laps are marked VALID; invalid laps are marked INVALID and dimmed.';
 
   section.appendChild(chart);
   section.appendChild(baselineLabel);
