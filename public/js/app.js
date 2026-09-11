@@ -21,6 +21,7 @@ let currentRecords = [];
 let currentCarRecords = [];
 let selectedTrack = null;
 let selectedLayout = null;
+let clubDataLoaded = false;
 
 function parseRoute() {
   const hash = window.location.hash || '#/';
@@ -85,6 +86,7 @@ async function init() {
         selectedTrack = decoded.slice(0, sep);
         selectedLayout = decoded.slice(sep + 1);
         await loadClubData();
+        clubDataLoaded = true;
         renderClub();
         return;
       }
@@ -100,7 +102,15 @@ async function init() {
       return;
     }
 
+    if (currentTracks.length === 1 && !selectedTrack && !selectedLayout) {
+      const t = currentTracks[0];
+      selectedTrack = t.name;
+      selectedLayout = t.layout;
+      window.location.hash = `#/${encodeURIComponent(selectedTrack)}|${encodeURIComponent(selectedLayout)}`;
+    }
+
     await loadClubData();
+    clubDataLoaded = true;
     renderClub();
   } catch (err) {
     app.innerHTML = '';
@@ -129,6 +139,21 @@ async function loadClubData() {
   }
 }
 
+function resolveSelection(tracks) {
+  if (selectedTrack && selectedLayout) {
+    const valid = tracks.some(t => t.name === selectedTrack && t.layout === selectedLayout);
+    if (valid) return true;
+  }
+  if (tracks.length === 1) {
+    const t = tracks[0];
+    selectedTrack = t.name;
+    selectedLayout = t.layout;
+    window.location.hash = `#/${encodeURIComponent(selectedTrack)}|${encodeURIComponent(selectedLayout)}`;
+    return true;
+  }
+  return false;
+}
+
 function renderClub() {
   app.innerHTML = '';
 
@@ -146,6 +171,7 @@ function renderClub() {
     selectedTrack = null;
     selectedLayout = null;
     window.location.hash = '#/';
+    clubDataLoaded = false;
     loadClubData().then(() => renderClub());
   });
 
@@ -159,18 +185,31 @@ function renderClub() {
   const overviewContent = document.createElement('div');
   overviewContent.className = 'club-overview-content';
 
-  const trackSelector = createTrackSelector(
-    currentTracks,
-    selectedTrack,
-    selectedLayout,
-    (track, layout) => {
+  if (currentTracks.length > 0) {
+    resolveSelection(currentTracks);
+
+    const heading = document.createElement('div');
+    heading.className = 'club-heading';
+
+    const info = document.createElement('div');
+    info.className = 'club-heading__info';
+    info.innerHTML = `
+      <span class="eyebrow">Club overview</span>
+      <h1>BentoClub</h1>
+      <p>Timing, records, and session history</p>
+    `;
+    heading.appendChild(info);
+
+    const selector = createTrackSelector(currentTracks, selectedTrack, selectedLayout, (track, layout) => {
       selectedTrack = track;
       selectedLayout = layout;
       window.location.hash = track && layout ? `#/${encodeURIComponent(track)}|${encodeURIComponent(layout)}` : '#/';
+      clubDataLoaded = false;
       loadClubData().then(() => renderClub());
-    }
-  );
-  overviewContent.appendChild(trackSelector);
+    });
+    heading.appendChild(selector);
+    overviewContent.appendChild(heading);
+  }
 
   if (selectedTrack && selectedLayout) {
     const recordsPanel = createRecordsPanel(currentRecords, selectedTrack, selectedLayout);
@@ -185,6 +224,8 @@ function renderClub() {
       const history = createSessionHistory(currentSessions, onSelectSession, currentSessionId);
       overviewContent.appendChild(history);
     }
+  } else if (currentTracks.length === 0) {
+    createClubOverview(overviewContent, currentClubStats, currentTracks, currentRecords, currentSessions.slice(0, 10));
   } else {
     createClubOverview(overviewContent, currentClubStats, currentTracks, currentRecords, currentSessions.slice(0, 10));
   }
@@ -406,6 +447,10 @@ function handleRouteChange() {
           selectedLayout = decoded.slice(sep + 1);
         }
       }
+    }
+    if (!resolveSelection(currentTracks)) {
+      selectedTrack = null;
+      selectedLayout = null;
     }
     loadClubData().then(() => renderClub());
   } else if (route.view === 'track' && route.id) {

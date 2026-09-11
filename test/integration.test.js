@@ -295,4 +295,57 @@ describe('integration - valid lap pipeline', () => {
     assert.equal(s.validLapCount, 2);
     assert.equal(s.invalidLapCount, 3);
   });
+
+  it('computes overall records for the only available track', () => {
+    const trackName = 'Nurburgring';
+    const layoutName = 'Touristenfahrten';
+    const records = computeOverallRecords(sessions, trackName, layoutName);
+    assert.ok(records.length > 0, `expected records for ${trackName}/${layoutName}, got ${records.length}`);
+    for (const r of records) {
+      assert.ok(r.bestLapMs !== null, `record ${r.driverName} should have valid bestLapMs`);
+      assert.ok(r.gapToOutrightMs !== null, `record ${r.driverName} should have gapToOutrightMs`);
+    }
+    // First record is the outright record
+    assert.ok(records[0].isOutrightRecord, 'first record should be outright record');
+    assert.equal(records[0].gapToOutrightMs, 0, 'outright record gap should be 0');
+  });
+
+  it('computes car records for the only available track', () => {
+    const trackName = 'Nurburgring';
+    const layoutName = 'Touristenfahrten';
+    const carRecords = computeCarRecords(sessions, trackName, layoutName);
+    assert.ok(carRecords.length > 0, `expected car records for ${trackName}/${layoutName}, got ${carRecords.length}`);
+    const carModels = carRecords.map(r => r.carModel);
+    assert.ok(new Set(carModels).size === carRecords.length, 'each car should appear once');
+    for (const r of carRecords) {
+      assert.ok(r.bestLapMs !== null, `car record ${r.carModel} should have valid bestLapMs`);
+    }
+  });
+
+  it('does not cross track-layout boundaries in overall records', () => {
+    const records = computeOverallRecords(sessions, 'Nonexistent', 'Track');
+    assert.equal(records.length, 0);
+  });
+
+  it('does not cross track-layout boundaries in car records', () => {
+    const carRecords = computeCarRecords(sessions, 'Nonexistent', 'Track');
+    assert.equal(carRecords.length, 0);
+  });
+
+  it('returns correct canonical track ID format', () => {
+    const tracksRes = sessions.reduce((map, s) => {
+      const key = `${s.track.name}|${s.track.layout}`;
+      if (!map.has(key)) map.set(key, { name: s.track.name, layout: s.track.layout, sessionCount: 0 });
+      map.get(key).sessionCount++;
+      return map;
+    }, new Map());
+
+    for (const [id, track] of tracksRes) {
+      const decoded = decodeURIComponent(id);
+      const sep = decoded.indexOf('|');
+      assert.ok(sep !== -1, `track ID ${id} should contain pipe separator`);
+      assert.ok(decoded.slice(0, sep) === track.name, `decoded name should match for ${id}`);
+      assert.ok(decoded.slice(sep + 1) === track.layout, `decoded layout should match for ${id}`);
+    }
+  });
 });

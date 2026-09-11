@@ -105,7 +105,198 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Session header ── */
+/* ── Club heading ── */
+.club-overview-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.club-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 0 0;
+}
+
+.club-heading__info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.club-heading .eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.club-heading h1 {
+  font-size: clamp(1.5rem, 4vw, 2.5rem);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  line-height: 1.1;
+  margin: 0;
+  padding: 0;
+}
+
+.club-heading p {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0;
+  padding: 0;
+}
+
+.track-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.track-selector__label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.track-selector__select {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  padding: 8px 12px;
+  cursor: pointer;
+  min-width: 220px;
+  font-family: var(--font-body);
+  line-height: 1.4;
+  max-width: 320px;
+}
+
+.track-selector__select:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+/* ── Records table ── */
+.records-table {
+  display: flex;
+  flex-direction: column;
+}
+
+.records-table__header,
+.records-table__row {
+  display: grid;
+  grid-template-columns: 36px 1.2fr 0.9fr 0.8fr 0.7fr 0.7fr;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 4px;
+}
+
+.records-table__header {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.records-table__header > div {
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.records-table__row {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s ease;
+}
+
+.records-table__row:last-child {
+  border-bottom: none;
+}
+
+.records-table__row:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.records-table__row--record {
+  background: rgba(0, 212, 255, 0.06);
+}
+
+.records-table__col-rank {
+  font-family: var(--font-mono-tabular);
+  font-weight: 700;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.records-table__col-driver {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.records-table__col-car {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.records-table__col-time {
+  font-family: var(--font-mono-tabular);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.records-table__col-gap {
+  font-family: var(--font-mono-tabular);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.records-table__col-gap--record {
+  color: var(--accent-cyan);
+}
+
+.records-table__col-date {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.records-table__more {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-align: right;
+  margin-top: 8px;
+}
+
+.records-panel__subtitle {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
 .session-header {
   padding: 8px 0 0;
 }
@@ -1095,6 +1286,20 @@ body {
     grid-template-columns: 1fr 1fr;
     gap: 20px;
   }
+
+  .club-heading {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .track-selector {
+    max-width: none;
+  }
+
+  .track-selector__select {
+    min-width: 0;
+    width: 100%;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1114,6 +1319,10 @@ body {
   .session-header__selector {
     max-width: 200px;
     font-size: 0.8125rem;
+  }
+
+  .club-heading h1 {
+    font-size: clamp(1.25rem, 5vw, 1.75rem);
   }
 
   .kpi-card {

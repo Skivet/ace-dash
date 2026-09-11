@@ -149,7 +149,7 @@ export function createClubOverview(container, stats, tracks, records, recentSess
     const empty = document.createElement('div');
     empty.className = 'panel';
     const explanation = stats.totalValidLaps > 0
-      ? 'No outright records for the selected track and layout. Select a different track from the selector above, or import more sessions to build the record book.'
+      ? 'No outright records for the selected track and layout. Import more sessions to build the record book.'
       : 'No valid lap records yet. Import ACE result files to build the club record book.';
     empty.innerHTML = `<p class="empty-state">${explanation}</p>`;
     container.appendChild(empty);
