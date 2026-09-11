@@ -80,21 +80,31 @@ class Importer {
     try {
       const files = await readdir(this.resultsDir);
       const jsonFiles = files.filter(f => extname(f) === '.json');
+      console.log(`[importer] scanning ${jsonFiles.length} JSON file(s) in ${this.resultsDir}`);
+      let imported = 0;
+      let skipped = 0;
       for (const filename of jsonFiles) {
-        await this._processFile(filename);
+        const result = await this._processFile(filename);
+        if (result === 'imported') imported++;
+        else if (result === 'skipped') skipped++;
       }
+      console.log(`[importer] scan complete: ${imported} imported, ${skipped} skipped`);
     } catch (err) {
       this._log('scan error', err);
     }
   }
 
   async _processFile(filename) {
-    if (this.watchedFiles.has(filename)) return;
-    if (this._isSkippedFilename(filename)) return;
+    if (this.watchedFiles.has(filename)) return 'skipped';
+    if (this._isSkippedFilename(filename)) return 'skipped';
 
     const filepath = join(this.resultsDir, filename);
+    console.log(`[importer] checking ${filename}`);
     const stable = await this._waitForStability(filepath);
-    if (!stable) return;
+    if (!stable) {
+      console.log(`[importer] ${filename} still changing, skipping`);
+      return 'skipped';
+    }
 
     const hash = await this._hashFile(filepath);
     const normalizedId = hash;
@@ -123,12 +133,15 @@ class Importer {
       const added = await this.store.add(normalized, sourceMeta);
       if (added) {
         this.watchedFiles.add(filename);
-        this._log(`imported ${filename} → ${normalizedId.slice(0, 8)}…`);
+        console.log(`[importer] ✓ imported ${filename} → ${normalizedId.slice(0, 8)}…`);
         if (this.onImport) this.onImport(normalizedId);
+        return 'imported';
       }
+      return 'skipped';
     } catch (err) {
-      this._log(`failed to import ${filename}: ${err.message}`);
+      console.error(`[importer] ✗ failed to import ${filename}: ${err.message}`);
       if (this.onError) this.onError(filename, err);
+      return 'skipped';
     }
   }
 
