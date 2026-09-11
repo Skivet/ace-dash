@@ -28,6 +28,7 @@ function makeSession(id, trackName, trackLayout, entries) {
     session: { name: 'Practice', type: 'Practice', completed: true, durationMs: 3600000 },
     entries,
     bestLapMs: entries?.length > 0 ? Math.min(...entries.filter(e => e.bestLapMs !== null).map(e => e.bestLapMs)) : null,
+    bestValidLapMs: entries?.length > 0 ? Math.min(...entries.filter(e => e.bestValidLapMs !== null).map(e => e.bestValidLapMs)) : null,
     completedLapCount: entries?.reduce((sum, e) => sum + (e.completedLapCount || 0), 0) || 0,
     validLapCount: entries?.reduce((sum, e) => sum + (e.validLapCount || 0), 0) || 0,
     invalidLapCount: entries?.reduce((sum, e) => sum + (e.invalidLapCount || 0), 0) || 0,
@@ -42,13 +43,13 @@ function computeOverallRecords(sessions, trackName, layoutName) {
   for (const s of sessions) {
     if (s.track.name !== trackName || s.track.layout !== layoutName) continue;
     for (const e of s.entries || []) {
-      if (e.bestLapMs === null) continue;
+      if (e.bestValidLapMs === null) continue;
       records.push({
         driverId: e.driver.id,
         driverName: e.driver.nickname,
         carId: e.car.id,
         carModel: e.car.model,
-        bestLapMs: e.bestLapMs,
+        bestLapMs: e.bestValidLapMs,
         gapToLeaderMs: e.gapToLeaderMs,
         sessionId: s.id,
         sessionName: s.session.name,
@@ -89,13 +90,13 @@ function computeCarRecords(sessions, trackName, layoutName) {
   for (const s of sessions) {
     if (s.track.name !== trackName || s.track.layout !== layoutName) continue;
     for (const e of s.entries || []) {
-      if (e.bestLapMs === null) continue;
+      if (e.bestValidLapMs === null) continue;
       const key = e.car.model;
       if (!carMap.has(key)) {
         carMap.set(key, {
           carId: e.car.id,
           carModel: e.car.model,
-          bestLapMs: e.bestLapMs,
+          bestLapMs: e.bestValidLapMs,
           driverId: e.driver.id,
           driverName: e.driver.nickname,
           sessionId: s.id,
@@ -108,8 +109,8 @@ function computeCarRecords(sessions, trackName, layoutName) {
         });
       } else {
         const existing = carMap.get(key);
-        if (e.bestLapMs < existing.bestLapMs) {
-          existing.bestLapMs = e.bestLapMs;
+        if (e.bestValidLapMs < existing.bestLapMs) {
+          existing.bestLapMs = e.bestValidLapMs;
           existing.driverId = e.driver.id;
           existing.driverName = e.driver.nickname;
           existing.sessionId = s.id;
@@ -156,8 +157,8 @@ describe('computeOverallRecords', () => {
   it('handles exact ties with TIED LEADER', () => {
     const sessions = [
       makeSession('s1', 'Track A', 'Layout 1', [
-        { id: 'd1:c1', driver: { id: 'd1', nickname: 'Alice' }, car: { id: 'c1', model: 'Car A' }, bestLapMs: 400000, gapToLeaderMs: 0, validLapCount: 1 },
-        { id: 'd2:c1', driver: { id: 'd2', nickname: 'Bob' }, car: { id: 'c1', model: 'Car A' }, bestLapMs: 400000, gapToLeaderMs: 0, validLapCount: 1 },
+        { id: 'd1:c1', driver: { id: 'd1', nickname: 'Alice' }, car: { id: 'c1', model: 'Car A' }, bestLapMs: 400000, bestValidLapMs: 400000, gapToLeaderMs: 0, validLapCount: 1 },
+        { id: 'd2:c1', driver: { id: 'd2', nickname: 'Bob' }, car: { id: 'c1', model: 'Car A' }, bestLapMs: 400000, bestValidLapMs: 400000, gapToLeaderMs: 0, validLapCount: 1 },
       ]),
     ];
     const records = computeOverallRecords(sessions, 'Track A', 'Layout 1');
@@ -175,10 +176,10 @@ describe('computeOverallRecords', () => {
   it('does not cross track-layout boundaries', () => {
     const sessions = [
       makeSession('s1', 'Track A', 'Layout 1', [
-        { id: 'd1:c1', driver: { id: 'd1', nickname: 'Alice' }, car: { id: 'c1', model: 'Car A' }, bestLapMs: 400000, gapToLeaderMs: 0, validLapCount: 1 },
+        { id: 'd1:c1', driver: { id: 'd1', nickname: 'Alice' }, car: { id: 'c1', model: 'Car A' }, bestLapMs: 400000, bestValidLapMs: 400000, gapToLeaderMs: 0, validLapCount: 1 },
       ]),
       makeSession('s2', 'Track B', 'Layout 2', [
-        { id: 'd1:c1', driver: { id: 'd1', nickname: 'Alice' }, car: { id: 'c1', model: 'Car A' }, bestLapMs: 350000, gapToLeaderMs: 0, validLapCount: 1 },
+        { id: 'd1:c1', driver: { id: 'd1', nickname: 'Alice' }, car: { id: 'c1', model: 'Car A' }, bestLapMs: 350000, bestValidLapMs: 350000, gapToLeaderMs: 0, validLapCount: 1 },
       ]),
     ];
     const recordsA = computeOverallRecords(sessions, 'Track A', 'Layout 1');
@@ -195,16 +196,35 @@ describe('computeOverallRecords', () => {
     assert.equal(records.length, 0);
   });
 
-  it('excludes entries with null bestLapMs', () => {
+  it('excludes entries with null bestValidLapMs', () => {
     const sessions = [
       makeSession('s1', 'Track A', 'Layout 1', [
-        { id: 'd1:c1', driver: { id: 'd1', nickname: 'Alice' }, car: { id: 'c1', model: 'Car A' }, bestLapMs: null, validLapCount: 0 },
-        { id: 'd2:c1', driver: { id: 'd2', nickname: 'Bob' }, car: { id: 'c1', model: 'Car A' }, bestLapMs: 400000, validLapCount: 1 },
+        { id: 'd1:c1', driver: { id: 'd1', nickname: 'Alice' }, car: { id: 'c1', model: 'Car A' }, bestLapMs: 400000, bestValidLapMs: null, validLapCount: 0 },
+        { id: 'd2:c1', driver: { id: 'd2', nickname: 'Bob' }, car: { id: 'c1', model: 'Car A' }, bestLapMs: 400000, bestValidLapMs: 390000, validLapCount: 1 },
       ]),
     ];
     const records = computeOverallRecords(sessions, 'Track A', 'Layout 1');
     assert.equal(records.length, 1);
     assert.equal(records[0].driverName, 'Bob');
+    assert.equal(records[0].bestLapMs, 390000);
+  });
+
+  it('uses bestValidLapMs for ranking, not bestLapMs', () => {
+    const sessions = [
+      makeSession('s1', 'Track A', 'Layout 1', [
+        { id: 'd1:c1', driver: { id: 'd1', nickname: 'Alice' }, car: { id: 'c1', model: 'Car A' }, bestLapMs: 380000, bestValidLapMs: 400000, validLapCount: 1 },
+        { id: 'd2:c1', driver: { id: 'd2', nickname: 'Bob' }, car: { id: 'c2', model: 'Car B' }, bestLapMs: 390000, bestValidLapMs: 395000, validLapCount: 1 },
+      ]),
+    ];
+    const records = computeOverallRecords(sessions, 'Track A', 'Layout 1');
+    assert.equal(records.length, 2);
+    // Bob has the better valid lap, so Bob is rank 1
+    assert.equal(records[0].driverName, 'Bob');
+    assert.equal(records[0].bestLapMs, 395000);
+    assert.equal(records[0].rank, 1);
+    assert.equal(records[1].driverName, 'Alice');
+    assert.equal(records[1].bestLapMs, 400000);
+    assert.equal(records[1].rank, 2);
   });
 });
 
@@ -212,10 +232,10 @@ describe('computeCarRecords', () => {
   it('tracks sessionCount across multiple sessions', () => {
     const sessions = [
       makeSession('s1', 'Track A', 'Layout 1', [
-        { id: 'd1:c1', driver: { id: 'd1', nickname: 'Alice' }, car: { id: 'c1', model: 'Car A' }, bestLapMs: 400000, validLapCount: 2, completedLapCount: 3 },
+        { id: 'd1:c1', driver: { id: 'd1', nickname: 'Alice' }, car: { id: 'c1', model: 'Car A' }, bestLapMs: 400000, bestValidLapMs: 400000, validLapCount: 2, completedLapCount: 3 },
       ]),
       makeSession('s2', 'Track A', 'Layout 1', [
-        { id: 'd1:c1', driver: { id: 'd1', nickname: 'Alice' }, car: { id: 'c1', model: 'Car A' }, bestLapMs: 410000, validLapCount: 1, completedLapCount: 2 },
+        { id: 'd1:c1', driver: { id: 'd1', nickname: 'Alice' }, car: { id: 'c1', model: 'Car A' }, bestLapMs: 410000, bestValidLapMs: 410000, validLapCount: 1, completedLapCount: 2 },
       ]),
     ];
     const records = computeCarRecords(sessions, 'Track A', 'Layout 1');
@@ -229,8 +249,8 @@ describe('computeCarRecords', () => {
   it('uses normalized car model identity', () => {
     const sessions = [
       makeSession('s1', 'Track A', 'Layout 1', [
-        { id: 'd1:c1', driver: { id: 'd1', nickname: 'Alice' }, car: { id: 'c1', model: 'Porsche 911 GT3 RS' }, bestLapMs: 400000, validLapCount: 1 },
-        { id: 'd1:c2', driver: { id: 'd1', nickname: 'Alice' }, car: { id: 'c2', model: 'Porsche 911 GT3 RS' }, bestLapMs: 390000, validLapCount: 1 },
+        { id: 'd1:c1', driver: { id: 'd1', nickname: 'Alice' }, car: { id: 'c1', model: 'Porsche 911 GT3 RS' }, bestLapMs: 400000, bestValidLapMs: 400000, validLapCount: 1 },
+        { id: 'd1:c2', driver: { id: 'd1', nickname: 'Alice' }, car: { id: 'c2', model: 'Porsche 911 GT3 RS' }, bestLapMs: 390000, bestValidLapMs: 390000, validLapCount: 1 },
       ]),
     ];
     const records = computeCarRecords(sessions, 'Track A', 'Layout 1');
@@ -242,8 +262,8 @@ describe('computeCarRecords', () => {
   it('handles ties in car records', () => {
     const sessions = [
       makeSession('s1', 'Track A', 'Layout 1', [
-        { id: 'd1:c1', driver: { id: 'd1', nickname: 'Alice' }, car: { id: 'c1', model: 'Car A' }, bestLapMs: 400000, validLapCount: 1 },
-        { id: 'd2:c2', driver: { id: 'd2', nickname: 'Bob' }, car: { id: 'c2', model: 'Car B' }, bestLapMs: 400000, validLapCount: 1 },
+        { id: 'd1:c1', driver: { id: 'd1', nickname: 'Alice' }, car: { id: 'c1', model: 'Car A' }, bestLapMs: 400000, bestValidLapMs: 400000, validLapCount: 1 },
+        { id: 'd2:c2', driver: { id: 'd2', nickname: 'Bob' }, car: { id: 'c2', model: 'Car B' }, bestLapMs: 400000, bestValidLapMs: 400000, validLapCount: 1 },
       ]),
     ];
     const records = computeCarRecords(sessions, 'Track A', 'Layout 1');
@@ -301,5 +321,64 @@ describe('idempotent import simulation', () => {
     assert.equal(s1.id, s2.id);
     assert.equal(s1.completedLapCount, s2.completedLapCount);
     assert.equal(s1.validLapCount, s2.validLapCount);
+    assert.equal(s1.validLapCount, 1);
+    assert.equal(s1.invalidLapCount, 0);
+    assert.equal(s1.entries[0].validLapCount, 1);
+    assert.equal(s1.entries[0].invalidLapCount, 0);
+    assert.equal(s1.entries[0].bestValidLapMs, 400000);
+    assert.equal(s1.entries[0].laps[0].isValid, true);
+  });
+
+  it('mixed flag laps produce correct valid/invalid counts', () => {
+    const driver = { guid: { a: '1', b: '2' }, nickname: 'test', nation: 'USA' };
+    const car = { car_id: { a: '3', b: '4' }, model_displayname: 'Car', race_number: 1 };
+    const s = normalize(buildMinimal({
+      drivers: [driver], cars: [car],
+      driver_standings: [{ a: '1', b: '2' }],
+      car_standings: [{ car_id: { a: '3', b: '4' } }],
+      laps: [
+        { driver_key: { a: '1', b: '2' }, car_key: { a: '3', b: '4' }, time: 400000, flags: 1 },
+        { driver_key: { a: '1', b: '2' }, car_key: { a: '3', b: '4' }, time: 390000, flags: 2 },
+        { driver_key: { a: '1', b: '2' }, car_key: { a: '3', b: '4' }, time: 395000, flags: 0 },
+        { driver_key: { a: '1', b: '2' }, car_key: { a: '3', b: '4' }, time: 385000, flags: 2 },
+      ],
+    }));
+    assert.equal(s.completedLapCount, 4);
+    assert.equal(s.validLapCount, 2);
+    assert.equal(s.invalidLapCount, 2);
+    assert.equal(s.entries[0].completedLapCount, 4);
+    assert.equal(s.entries[0].validLapCount, 2);
+    assert.equal(s.entries[0].invalidLapCount, 2);
+    // bestLapMs is from all laps (385000, flag 2)
+    assert.equal(s.entries[0].bestLapMs, 385000);
+    // bestValidLapMs is also 385000 (best valid lap)
+    assert.equal(s.entries[0].bestValidLapMs, 385000);
+    // lap flags and isValid
+    assert.equal(s.entries[0].laps[0].flags, 1);
+    assert.equal(s.entries[0].laps[0].isValid, false);
+    assert.equal(s.entries[0].laps[1].flags, 2);
+    assert.equal(s.entries[0].laps[1].isValid, true);
+    assert.equal(s.entries[0].laps[2].flags, 0);
+    assert.equal(s.entries[0].laps[2].isValid, false);
+    assert.equal(s.entries[0].laps[3].flags, 2);
+    assert.equal(s.entries[0].laps[3].isValid, true);
+  });
+
+  it('entry with no valid laps has null bestValidLapMs', () => {
+    const driver = { guid: { a: '1', b: '2' }, nickname: 'test', nation: 'USA' };
+    const car = { car_id: { a: '3', b: '4' }, model_displayname: 'Car', race_number: 1 };
+    const s = normalize(buildMinimal({
+      drivers: [driver], cars: [car],
+      driver_standings: [{ a: '1', b: '2' }],
+      car_standings: [{ car_id: { a: '3', b: '4' } }],
+      laps: [
+        { driver_key: { a: '1', b: '2' }, car_key: { a: '3', b: '4' }, time: 400000, flags: 1 },
+        { driver_key: { a: '1', b: '2' }, car_key: { a: '3', b: '4' }, time: 390000, flags: 3 },
+      ],
+    }));
+    assert.equal(s.entries[0].validLapCount, 0);
+    assert.equal(s.entries[0].invalidLapCount, 2);
+    assert.equal(s.entries[0].bestValidLapMs, null);
+    assert.equal(s.entries[0].bestLapMs, 390000);
   });
 });

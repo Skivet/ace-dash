@@ -63,6 +63,7 @@ function normalizeLap(lap) {
     driverKey,
     timeMs,
     flags: lap.flags,
+    isValid: isValidLap({ flags: lap.flags, timeMs }),
   };
 }
 
@@ -149,6 +150,10 @@ function normalize(raw) {
       .filter(l => l.driverKey === driverKey && l.carKey === carKey && l.timeMs > 0);
 
     const bestLapMs = entryLaps.length > 0 ? Math.min(...entryLaps.map(l => l.timeMs)) : null;
+    const validLaps = entryLaps.filter(l => l.isValid);
+    const validLapCount = validLaps.length;
+    const invalidLapCount = entryLaps.length - validLapCount;
+    const bestValidLapMs = validLaps.length > 0 ? Math.min(...validLaps.map(l => l.timeMs)) : null;
     const completedLapCount = entryLaps.length;
     const averageLapMs = completedLapCount > 0 ? Math.round(entryLaps.reduce((sum, l) => sum + l.timeMs, 0) / completedLapCount) : null;
     const lapRangeMs = completedLapCount >= 2 ? Math.max(...entryLaps.map(l => l.timeMs)) - Math.min(...entryLaps.map(l => l.timeMs)) : null;
@@ -169,8 +174,12 @@ function normalize(raw) {
         number: idx + 1,
         timeMs: l.timeMs,
         flags: l.flags,
+        isValid: l.isValid,
       })),
       bestLapMs,
+      bestValidLapMs,
+      validLapCount,
+      invalidLapCount,
       completedLapCount,
       averageLapMs,
       lapRangeMs,
@@ -186,6 +195,8 @@ function normalize(raw) {
   const allLaps = entries.flatMap(e => e.laps);
   const completedLapCount = allLaps.length;
   const bestLapMs = allLaps.length > 0 ? Math.min(...allLaps.map(l => l.timeMs)) : null;
+  const validLapCount = allLaps.filter(l => l.isValid).length;
+  const invalidLapCount = completedLapCount - validLapCount;
 
   entries.sort((a, b) => {
     if (a.bestLapMs !== null && b.bestLapMs !== null) return a.bestLapMs - b.bestLapMs;
@@ -256,6 +267,8 @@ function normalize(raw) {
     paceSummary,
     bestLapMs,
     completedLapCount,
+    validLapCount,
+    invalidLapCount,
     largestImprovementMs,
     maxImpactKmh,
     leaderGapMs,

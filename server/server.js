@@ -132,13 +132,13 @@ function computeOverallRecords(sessions, trackName, layoutName) {
   for (const s of sessions) {
     if (s.track.name !== trackName || s.track.layout !== layoutName) continue;
     for (const e of s.entries || []) {
-      if (e.bestLapMs === null) continue;
+      if (e.bestValidLapMs === null) continue;
       records.push({
         driverId: e.driver.id,
         driverName: e.driver.nickname,
         carId: e.car.id,
         carModel: e.car.model,
-        bestLapMs: e.bestLapMs,
+        bestLapMs: e.bestValidLapMs,
         gapToLeaderMs: e.gapToLeaderMs,
         sessionId: s.id,
         sessionName: s.session.name,
@@ -179,13 +179,13 @@ function computeCarRecords(sessions, trackName, layoutName) {
   for (const s of sessions) {
     if (s.track.name !== trackName || s.track.layout !== layoutName) continue;
     for (const e of s.entries || []) {
-      if (e.bestLapMs === null) continue;
+      if (e.bestValidLapMs === null) continue;
       const key = e.car.model;
       if (!carMap.has(key)) {
         carMap.set(key, {
           carId: e.car.id,
           carModel: e.car.model,
-          bestLapMs: e.bestLapMs,
+          bestLapMs: e.bestValidLapMs,
           driverId: e.driver.id,
           driverName: e.driver.nickname,
           sessionId: s.id,
@@ -198,8 +198,8 @@ function computeCarRecords(sessions, trackName, layoutName) {
         });
       } else {
         const existing = carMap.get(key);
-        if (e.bestLapMs < existing.bestLapMs) {
-          existing.bestLapMs = e.bestLapMs;
+        if (e.bestValidLapMs < existing.bestLapMs) {
+          existing.bestLapMs = e.bestValidLapMs;
           existing.driverId = e.driver.id;
           existing.driverName = e.driver.nickname;
           existing.sessionId = s.id;
@@ -369,7 +369,7 @@ async function handleApi(req, res, { path, query }) {
       (s.entries || []).some(e => e.car.model === carModel)
     );
     const entries = carSessions.flatMap(s =>
-      (s.entries || []).filter(e => e.car.model === carModel && e.bestLapMs !== null)
+      (s.entries || []).filter(e => e.car.model === carModel && e.bestValidLapMs !== null)
     );
     entries.sort((a, b) => a.bestLapMs - b.bestLapMs);
     const bestLapMs = entries.length > 0 ? entries[0].bestLapMs : null;
@@ -393,7 +393,7 @@ async function handleApi(req, res, { path, query }) {
       (s.entries || []).some(e => e.driver.id === driverId)
     );
     const entries = driverSessions.flatMap(s =>
-      (s.entries || []).filter(e => e.driver.id === driverId && e.bestLapMs !== null)
+      (s.entries || []).filter(e => e.driver.id === driverId && e.bestValidLapMs !== null)
     );
     entries.sort((a, b) => a.bestLapMs - b.bestLapMs);
     const bestLapMs = entries.length > 0 ? entries[0].bestLapMs : null;

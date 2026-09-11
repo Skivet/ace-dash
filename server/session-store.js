@@ -62,6 +62,8 @@ class SessionStore {
       session: normalized.session,
       completedLapCount: normalized.completedLapCount,
       bestLapMs: normalized.bestLapMs,
+      validLapCount: normalized.validLapCount,
+      invalidLapCount: normalized.invalidLapCount,
       largestImprovementMs: normalized.largestImprovementMs,
       maxImpactKmh: normalized.maxImpactKmh,
       leaderGapMs: normalized.leaderGapMs,
