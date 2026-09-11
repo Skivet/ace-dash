@@ -15,6 +15,7 @@ const SCAN_INTERVAL = parseInt(process.env.ACE_SCAN_INTERVAL_MS || '10000', 10);
 
 const store = new SessionStore(NORMALIZED_DIR);
 const importer = new Importer(store, RESULTS_DIR, NORMALIZED_DIR, SCAN_INTERVAL);
+let server;
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -413,38 +414,45 @@ async function handleApi(req, res, { path, query }) {
   return null;
 }
 
-const server = createServer(async (req, res) => {
-  const { path } = parseUrl(req.url);
-
-  if (path.startsWith('/api/')) {
-    const result = await handleApi(req, res, parseUrl(req.url));
-    if (result) return;
-  }
-
-  if (path === '/' || path === '/index.html') {
-    return sendStatic(res, join(PUBLIC_DIR, 'index.html'));
-  }
-
-  return sendStatic(res, join(PUBLIC_DIR, path));
-});
-
 async function main() {
+  console.log(`ACE Dashboard starting...`);
+  console.log(`  Results dir:    ${RESULTS_DIR}`);
+  console.log(`  Normalized dir: ${NORMALIZED_DIR}`);
+  console.log(`  Port:           ${PORT}`);
+
   await store.init();
-  await importer.start();
-  console.log(`ACE Dashboard starting on port ${PORT}`);
-  console.log(`Results dir: ${RESULTS_DIR}`);
-  console.log(`Normalized dir: ${NORMALIZED_DIR}`);
-  console.log(`Sessions imported: ${store.list().length}`);
+  console.log(`  Sessions loaded: ${store.list().length}`);
 
   importer.onImport = (id) => {
-    console.log(`New session imported: ${id.slice(0, 8)}…`);
+    console.log(`  [importer] New session: ${id.slice(0, 8)}…`);
   };
   importer.onError = (filename, err) => {
-    console.error(`Import error for ${filename}: ${err.message}`);
+    console.error(`  [importer] Error: ${filename}: ${err.message}`);
   };
 
+  // Start importer in background so the server is usable immediately
+  importer.start().catch(err => {
+    console.error('[importer] Fatal scan error:', err);
+  });
+
+  server = createServer(async (req, res) => {
+    const { path } = parseUrl(req.url);
+
+    if (path.startsWith('/api/')) {
+      const result = await handleApi(req, res, parseUrl(req.url));
+      if (result) return;
+    }
+
+    if (path === '/' || path === '/index.html') {
+      return sendStatic(res, join(PUBLIC_DIR, 'index.html'));
+    }
+
+    return sendStatic(res, join(PUBLIC_DIR, path));
+  });
+
   server.listen(PORT, () => {
-    console.log(`Server listening on http://localhost:${PORT}`);
+    console.log(`  Server listening on http://localhost:${PORT}`);
+    console.log(`  Done.\n`);
   });
 }
 
